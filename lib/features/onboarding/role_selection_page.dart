@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/auth_service.dart';
 
 enum UserRole { regular, business }
 
@@ -19,9 +20,27 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
   static const _grey = Color(0xFF7A7A7A);
 
   UserRole? _selected;
+  bool _saving = false;
 
-  void _continue() {
-    // TODO: simpan role & arahkan ke halaman berikutnya (tahap backend/navigasi)
+  Future<void> _continue() async {
+    final role = _selected;
+    if (role == null || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await AuthService.instance.saveRole(role.name); // 'regular' / 'business'
+      if (!mounted) return;
+      // TODO: arahkan ke halaman utama setelah halaman itu ada.
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Role tersimpan.')));
+    } on AuthFailure catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Widget _radio(bool selected) {

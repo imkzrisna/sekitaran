@@ -1,9 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/auth_service.dart';
 import 'package:sekitaran/features/onboarding/role_selection_page.dart';
 
-class AccountCreatedPage extends StatelessWidget {
+class AccountCreatedPage extends StatefulWidget {
   const AccountCreatedPage({super.key});
+
+  @override
+  State<AccountCreatedPage> createState() => _AccountCreatedPageState();
+}
+
+class _AccountCreatedPageState extends State<AccountCreatedPage> {
+  bool _saving = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _save();
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await AuthService.instance.ensureProfile();
+    } on AuthFailure catch (e) {
+      _error = e.message;
+    }
+    if (mounted) setState(() => _saving = false);
+  }
 
   static const _green = Color(0xFF103D17);
   static const _label = Color(0xFF252525);
@@ -174,7 +202,35 @@ class AccountCreatedPage extends StatelessWidget {
                     description: 'Start discovering local places and everyday needs around you.',
                   ),
                   const SizedBox(height: 32),
-                  _continueButton(context),
+                  if (_saving)
+                    const Center(
+                      child: SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 4,
+                          color: _green,
+                        ),
+                      ),
+                    )
+                  else if (_error != null) ...[
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.red.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: TextButton(
+                        onPressed: _save,
+                        child: const Text('Coba lagi'),
+                      ),
+                    ),
+                  ] else
+                    _continueButton(context),
                   const SizedBox(height: 40),
                 ],
               ),

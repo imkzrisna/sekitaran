@@ -21,6 +21,9 @@ class AuthService {
     required String password,
   }) async {
     try {
+      if (!await isUsernameAvailable(username)) {
+        throw const AuthFailure('Username sudah dipakai. Coba username lain.');
+      }
       final res = await _client.auth.signUp(
         email: email,
         password: password,
@@ -50,6 +53,111 @@ class AuthService {
       throw const AuthFailure(
         'Terjadi kesalahan. Periksa koneksi internet lalu coba lagi.',
       );
+    }
+  }
+
+  Future<bool> isUsernameAvailable(String username) async {
+    final res = await _client.rpc(
+      'is_username_available',
+      params: {'p_username': username},
+    );
+    return res == true;
+  }
+
+  Future<void> verifySignupOtp({
+    required String email,
+    required String token,
+  }) async {
+    try {
+      final res = await _client.auth.verifyOTP(
+        type: OtpType.signup,
+        email: email,
+        token: token,
+      );
+      if (res.session == null) {
+        throw const AuthFailure('Verifikasi gagal. Silakan coba lagi.');
+      }
+    } on AuthFailure {
+      rethrow;
+    } on AuthRetryableFetchException {
+      throw const AuthFailure('Tidak dapat terhubung ke server.');
+    } on AuthException catch (e) {
+      final code = e.code ?? '';
+      if (code == 'over_request_rate_limit') {
+        throw const AuthFailure('Terlalu banyak percobaan. Tunggu sebentar.');
+      }
+      // Supabase memakai kode yang sama untuk OTP salah dan kedaluwarsa.
+      throw const AuthFailure('Kode salah atau sudah kedaluwarsa.');
+    } catch (_) {
+      throw const AuthFailure('Terjadi kesalahan. Periksa koneksi internet.');
+    }
+  }
+
+  Future<void> resendSignupOtp(String email) async {
+    try {
+      await _client.auth.resend(type: OtpType.signup, email: email);
+    } on AuthRetryableFetchException {
+      throw const AuthFailure('Tidak dapat terhubung ke server.');
+    } on AuthException catch (e) {
+      final code = e.code ?? '';
+      if (code == 'over_email_send_rate_limit' ||
+          code == 'over_request_rate_limit') {
+        throw const AuthFailure(
+          'Terlalu cepat. Tunggu sebentar sebelum meminta kode baru.',
+        );
+      }
+      throw AuthFailure('Gagal mengirim ulang kode: ${e.message}');
+    } catch (_) {
+      throw const AuthFailure('Terjadi kesalahan. Periksa koneksi internet.');
+    }
+  }
+
+  /// Membuat baris profil setelah email terverifikasi (dipanggil di
+  /// AccountCreatedPage). Upsert per id, jadi aman dipanggil ulang dan
+  /// tidak menimpa kolom role.
+  Future<void> ensureProfile() async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw const AuthFailure('Sesi tidak ditemukan. Silakan daftar ulang.');
+    }
+    final username = (user.userMetadata?['username'] as String?)?.trim();
+    if (username == null || username.isEmpty) {
+      throw const AuthFailure('Data username tidak ditemukan.');
+    }
+    try {
+      await _client
+          .from('profiles')
+          .upsert({'id': user.id, 'username': username}, onConflict: 'id');
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') {
+        throw const AuthFailure('Username sudah dipakai orang lain.');
+      }
+      throw AuthFailure('Gagal menyimpan profil: ${e.message}');
+    } catch (_) {
+      throw const AuthFailure('Gagal menyimpan profil. Periksa koneksi.');
+    }
+  }
+
+  Future<void> saveRole(String role) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) {
+      throw const AuthFailure('Sesi berakhir. Silakan masuk kembali.');
+    }
+    try {
+      final rows = await _client
+          .from('profiles')
+          .update({'role': role})
+          .eq('id', uid)
+          .select();
+      if (rows.isEmpty) {
+        throw const AuthFailure('Profil belum tersedia.');
+      }
+    } on AuthFailure {
+      rethrow;
+    } on PostgrestException catch (e) {
+      throw AuthFailure('Gagal menyimpan role: ${e.message}');
+    } catch (_) {
+      throw const AuthFailure('Gagal menyimpan role. Periksa koneksi.');
     }
   }
 
