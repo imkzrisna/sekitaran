@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/auth_service.dart';
+import 'package:sekitaran/features/auth/verify_device_page.dart';
 import 'package:sekitaran/features/auth/verify_email_page.dart';
 
 class CreateAccountPage extends StatefulWidget {
@@ -29,6 +31,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
   bool _hideConfirm = true;
   bool _agree = false;
   bool _agreeError = false;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -39,13 +42,33 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_loading) return;
+    FocusScope.of(context).unfocus();
     final valid = _formKey.currentState!.validate();
     setState(() => _agreeError = !_agree);
-    if (valid && _agree) {
-      // TODO: backend di tahap berikutnya
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const VerifyEmailPage()));
+    if (!valid || !_agree) return;
+
+    setState(() => _loading = true);
+    final email = _email.text.trim();
+    try {
+      final result = await AuthService.instance.signUp(
+        username: _username.text.trim(),
+        email: email,
+        password: _password.text,
+      );
+      if (!mounted) return;
+      final Widget next = result == SignUpResult.needsOtp
+          ? VerifyEmailPage(email: email)
+          : const VerifyDevicePage();
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => next));
+    } on AuthFailure catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -417,14 +440,23 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                             color: _green,
                             border: Border.all(color: Colors.white, width: 2),
                           ),
-                          child: Text(
-                            'Sign Up',
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  'Sign Up',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
                     ),

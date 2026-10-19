@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/auth/verify_device_page.dart';
 
 class VerifyEmailPage extends StatefulWidget {
-  const VerifyEmailPage({super.key});
+  const VerifyEmailPage({super.key, required this.email});
+
+  final String email;
 
   @override
   State<VerifyEmailPage> createState() => _VerifyEmailPageState();
