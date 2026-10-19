@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/verify_device_page.dart';
 
 class VerifyEmailPage extends StatefulWidget {
   const VerifyEmailPage({super.key});
@@ -40,9 +41,8 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     setState(() => _showError = !complete);
     if (complete) {
       // TODO: verifikasi OTP di tahap backend
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kode lengkap (frontend only)')),
-      );
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const VerifyDevicePage()));
     }
   }
 
