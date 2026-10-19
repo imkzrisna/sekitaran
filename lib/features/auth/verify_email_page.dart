@@ -170,15 +170,27 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                                 const TextSpan(
                                   text: 'Join Sekitaran and discover ',
                                 ),
-                                TextSpan(
-                                  text: "what's around you.",
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: _label,
-                                    decoration: TextDecoration.underline,
-                                    decorationColor: _green,
-                                    decorationThickness: 1.5,
+                                WidgetSpan(
+                                  alignment: PlaceholderAlignment.baseline,
+                                  baseline: TextBaseline.alphabetic,
+                                  child: Container(
+                                    padding: const EdgeInsets.only(bottom: 3),
+                                    decoration: const BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: _green,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      "what's around you.",
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                        color: _label,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
