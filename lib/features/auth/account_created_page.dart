@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/onboarding/role_selection_page.dart';
 
 class AccountCreatedPage extends StatelessWidget {
   const AccountCreatedPage({super.key});
@@ -56,10 +57,12 @@ class AccountCreatedPage extends StatelessWidget {
     );
   }
 
-  Widget _continueButton() {
+  Widget _continueButton(BuildContext context) {
     return InkWell(
       onTap: () {
-        // TODO: arahkan ke halaman utama Sekitaran
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
+        );
       },
       child: Container(
         width: double.infinity,
@@ -171,7 +174,7 @@ class AccountCreatedPage extends StatelessWidget {
                     description: 'Start discovering local places and everyday needs around you.',
                   ),
                   const SizedBox(height: 32),
-                  _continueButton(),
+                  _continueButton(context),
                   const SizedBox(height: 40),
                 ],
               ),
