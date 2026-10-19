@@ -27,7 +27,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
 
   bool _hidePass = true;
   bool _hideConfirm = true;
-  bool _agree = true;
+  bool _agree = false;
   bool _agreeError = false;
 
   @override
@@ -269,9 +269,14 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                         'Enter your username',
                         'Panjang karakter username minimal 8',
                       ),
-                      validator: (v) => (v == null || v.trim().length < 8)
-                          ? 'Username minimal 8 karakter'
-                          : null,
+                      validator: (v) {
+                        final t = v?.trim() ?? '';
+                        if (t.length < 8) return 'Username minimal 8 karakter';
+                        if (!RegExp(r'^[a-zA-Z0-9_.]+$').hasMatch(t)) {
+                          return 'Username hanya boleh huruf, angka, titik, dan underscore';
+                        }
+                        return null;
+                      },
                     ),
 
                     _fieldLabel('Email'),
@@ -298,7 +303,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       style: GoogleFonts.poppins(fontSize: 15, color: _label),
                       decoration: _decoration(
                         'Enter your password',
-                        'Minimal password mengandung (min panjang 5 karakter dengan kombinasi angka)',
+                        'Minimal 6 karakter dan mengandung angka',
                         suffix: _eye(
                           _hidePass,
                           () => setState(() => _hidePass = !_hidePass),
@@ -306,7 +311,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       ),
                       validator: (v) {
                         final t = v ?? '';
-                        if (t.length < 5) return 'Password minimal 5 karakter';
+                        if (t.length < 6) return 'Password minimal 6 karakter';
                         if (!RegExp(r'\d').hasMatch(t)) {
                           return 'Password harus mengandung angka';
                         }
@@ -345,8 +350,10 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                               borderRadius: BorderRadius.circular(3),
                             ),
                             side: const BorderSide(color: _green, width: 1.5),
-                            onChanged: (v) =>
-                                setState(() => _agree = v ?? false),
+                            onChanged: (v) => setState(() {
+                              _agree = v ?? false;
+                              if (_agree) _agreeError = false;
+                            }),
                           ),
                         ),
                         const SizedBox(width: 12),
