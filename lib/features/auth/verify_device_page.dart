@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/account_created_page.dart';
 
 class VerifyDevicePage extends StatefulWidget {
   const VerifyDevicePage({super.key});
@@ -24,9 +25,14 @@ class _VerifyDevicePageState extends State<VerifyDevicePage> {
   }
 
   void _startShakeDetection() {
-    // TODO: pasang sensor goyang (accelerometer) di tahap berikutnya.
-    // Saat goyangan terdeteksi -> lanjut ke halaman berikutnya.
-    // Jika gagal/timeout -> setState(() => _checking = false);
+    // TODO: ganti dengan sensor goyang (accelerometer) di tahap berikutnya.
+    // Sementara: simulasi sukses setelah 3 detik agar alur UI bisa dicoba.
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const AccountCreatedPage()),
+      );
+    });
   }
 
   Widget _title() {
