@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/verify_email_page.dart';
 
 class CreateAccountPage extends StatefulWidget {
   const CreateAccountPage({super.key});
@@ -43,9 +44,8 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     setState(() => _agreeError = !_agree);
     if (valid && _agree) {
       // TODO: backend di tahap berikutnya
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Validasi berhasil (frontend only)')),
-      );
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const VerifyEmailPage()));
     }
   }
 
