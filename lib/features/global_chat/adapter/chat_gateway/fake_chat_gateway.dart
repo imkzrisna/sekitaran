@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:sekitaran/features/global_chat/adapter/chat_gateway_interface.dart';
+import 'package:sekitaran/features/global_chat/adapter/chat_gateway/chat_gateway_interface.dart';
 import 'package:sekitaran/features/global_chat/value_object/message.dart';
 
 class FakeChatGateway implements ChatGatewayInterface {

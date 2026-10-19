@@ -1,31 +1,36 @@
+import 'dart:collection';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sekitaran/features/global_chat/adapter/fake_chat_gateway.dart';
-import 'package:sekitaran/features/global_chat/usecase/chat_service.dart';
-import 'package:sekitaran/features/global_chat/usecase/send_chat_usecase_interactor.dart';
+import 'package:sekitaran/features/global_chat/adapter/chat_gateway/fake_chat_gateway.dart';
+import 'package:sekitaran/features/global_chat/adapter/session_manager/fake_session_manager.dart';
+import 'package:sekitaran/features/global_chat/chat_service.dart';
 import 'package:sekitaran/features/global_chat/value_object/message.dart';
 
 void main() {
-  test("when not sending any message, should not have message stored", () async {
-    final gateway = FakeChatGateway();
-    final service = ChatService(gateway);
+  late FakeChatGateway gateway;
+  late ChatService service;
+  late FakeSessionManager session;
 
+  setUp(() async {
+    gateway = FakeChatGateway();
+    session = FakeSessionManager();
+    service = ChatService(gateway, session);
+
+    session.sessionValue["username"] = "user1";
+  });
+
+  test("when not sending any message, should not have message stored", () async {
     expect(gateway.getAll(), []);
   });
 
   test("when sending one message, message storage should not be emtpy", () async {
-    final gateway = FakeChatGateway();
-    final service = ChatService(gateway);
-
-    final message = Message("hello", "user");
+    final message = Message("hello", "user1");
     await service.sendChat(message);
 
     expect(gateway.getAll().contains(message), true);
   });
 
   test("when loading one message and then send another message, it should update the chatlist", () async {
-    final gateway = FakeChatGateway();
-    final service = ChatService(gateway);
-
     final first = Message("hello", "user1");
     final second = Message("world", "user2");
 
@@ -48,5 +53,13 @@ void main() {
       reason: "sendChat must publish an updated chat list",
     );
     expect(emittedChatLists.last, [first, second]);
+  });
+
+  test("when user is not authorized, it should not be able to send message", () async { 
+    session.sessionValue = HashMap();
+    final message = Message("I'm not authorized", "unauthorizedUser");
+    await service.sendChat(message);
+
+    expect(gateway.getAll(), []);
   });
 }
