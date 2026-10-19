@@ -217,9 +217,11 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    Center(
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
                       child: Text.rich(
-                        textAlign: TextAlign.center,
+                        softWrap: false,
+                        maxLines: 1,
                         TextSpan(
                           style: GoogleFonts.poppins(
                             fontSize: 15,
