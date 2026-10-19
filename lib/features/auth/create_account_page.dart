@@ -189,34 +189,31 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                   children: [
                     const SizedBox(height: 32),
                     Center(
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'Create Account',
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Text(
+                            'Create Account',
+                            style: GoogleFonts.poppins(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w600,
+                              color: _green,
+                            ),
+                          ),
+                          Positioned(
+                            top: -14,
+                            right: -24,
+                            child: Text(
+                              '*',
                               style: GoogleFonts.poppins(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w600,
-                                color: _green,
+                                fontSize: 48,
+                                fontWeight: FontWeight.w500,
+                                color: _star,
+                                height: 1,
                               ),
                             ),
-                            WidgetSpan(
-                              alignment: PlaceholderAlignment.top,
-                              child: Transform.translate(
-                                offset: const Offset(4, -2),
-                                child: Text(
-                                  '*',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 48,
-                                    fontWeight: FontWeight.w500,
-                                    color: _star,
-                                    height: 1,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 14),
