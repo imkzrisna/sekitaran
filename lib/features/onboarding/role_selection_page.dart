@@ -27,8 +27,8 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
   Widget _radio(bool selected) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
-      width: 28,
-      height: 28,
+      width: 20,
+      height: 20,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: selected ? _green : Colors.white,
@@ -88,7 +88,8 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
     required String name,
     required List<Widget> features,
   }) {
-    return InkWell(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => setState(() => _selected = role),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -98,7 +99,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
             Row(
               children: [
                 _radio(_selected == role),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Text(
                   name,
                   style: GoogleFonts.poppins(
