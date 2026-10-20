@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/terms_dialog.dart';
 import 'package:sekitaran/features/auth/auth_service.dart';
 import 'package:sekitaran/features/auth/verify_device_page.dart';
 import 'package:sekitaran/features/auth/verify_email_page.dart';
@@ -387,8 +388,14 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                         ),
                         const SizedBox(width: 6),
                         InkWell(
-                          onTap: () {
-                            // TODO: navigasi ke halaman Terms & Conditions
+                          onTap: () async {
+                            final accepted = await showTermsDialog(context);
+                            if (accepted == true && mounted) {
+                              setState(() {
+                                _agree = true;
+                                _agreeError = false;
+                              });
+                            }
                           },
                           child: Container(
                             padding: const EdgeInsets.only(bottom: 1),
