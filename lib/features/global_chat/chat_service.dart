@@ -10,10 +10,10 @@ class ChatService {
   final ChatGatewayInterface _gateway;
   final FakeSessionManager _session;
 
-  Stream<List<Message>>? get chatList => _session.loadSessionValue().isEmpty ? _gateway.watchMessages() : null;
+  Stream<List<Message>>? get chatList => _session.currentSession == null ? _gateway.watchMessages() : null;
 
   Future<void> sendChat(Message message) async {
-    if (_session.loadSessionValue().isEmpty) return;
+    if (_session.currentSession == null) return;
 
     _gateway.sendMessage(message);
   } 
