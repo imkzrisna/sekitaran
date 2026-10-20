@@ -1,11 +1,9 @@
-import 'dart:collection';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sekitaran/features/auth/persistence/user_repository/fake_user_profile_repository.dart';
+import 'package:sekitaran/features/auth/persistence/user_profile_repository/fake_user_profile_repository.dart';
 import 'package:sekitaran/features/global_chat/adapter/chat_gateway/fake_chat_gateway.dart';
 import 'package:sekitaran/features/global_chat/adapter/session_manager/fake_session_manager.dart';
 import 'package:sekitaran/features/global_chat/chat_service.dart';
-import 'package:sekitaran/features/global_chat/value_object/message.dart';
+import 'package:sekitaran/features/global_chat/vo/message.dart';
 
 void main() {
   group("chatting test", () {

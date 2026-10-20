@@ -1,14 +1,15 @@
 import 'dart:async';
 
-import 'package:sekitaran/features/auth/entity/user.dart';
-import 'package:sekitaran/features/auth/persistence/user_repository/user_profile_repository_interface.dart';
+import 'package:sekitaran/features/auth/entity/user_profile.dart';
+import 'package:sekitaran/features/auth/persistence/user_profile_repository/user_profile_repository_interface.dart';
 import 'package:sekitaran/features/global_chat/adapter/session_manager/session_manager_interface.dart';
-import 'package:sekitaran/features/global_chat/value_object/auth_session.dart';
+import 'package:sekitaran/features/global_chat/vo/auth_session.dart';
+import 'package:uuid/uuid.dart';
 
 class FakeSessionManager implements SessionManagerInterface {
-  new(this.repo);
+  new(this._repo);
 
-  UserProfileRepositoryInterface repo;
+  final UserProfileRepositoryInterface _repo;
 
   final StreamController<AuthSession?> _streamController =
       StreamController<AuthSession?>.broadcast(sync: true);
@@ -27,7 +28,7 @@ class FakeSessionManager implements SessionManagerInterface {
     required String password,
   }) async {
     final session = AuthSession(
-      userId: email,
+      userId: Uuid().toString(),
       email: email,
       accessToken: 'fake-access-token',
       refreshToken: 'fake-refresh-token',
@@ -45,7 +46,7 @@ class FakeSessionManager implements SessionManagerInterface {
     required String password,
     required String username,
   }) async {
-    repo.insertAsync(User(username, email, password));
+    _repo.insertAsync(UserProfile(username, email));
   }
 
   @override

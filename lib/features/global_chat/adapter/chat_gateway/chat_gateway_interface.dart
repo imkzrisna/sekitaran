@@ -1,4 +1,4 @@
-import 'package:sekitaran/features/global_chat/value_object/message.dart';
+import 'package:sekitaran/features/global_chat/vo/message.dart';
 
 abstract interface class ChatGatewayInterface {
   Stream<List<Message>> watchMessages();

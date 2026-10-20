@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:sekitaran/features/global_chat/adapter/chat_gateway/chat_gateway_interface.dart';
 import 'package:sekitaran/features/global_chat/adapter/session_manager/fake_session_manager.dart';
-import 'package:sekitaran/features/global_chat/value_object/message.dart';
+import 'package:sekitaran/features/global_chat/vo/message.dart';
 
 class ChatService {
   ChatService(this._gateway, this._session);
