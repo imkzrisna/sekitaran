@@ -67,39 +67,39 @@ class _VerifyDevicePageState extends State<VerifyDevicePage> {
         const SizedBox(height: 14),
         FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text.rich(
-            softWrap: false,
-            maxLines: 1,
-            TextSpan(
-              style: GoogleFonts.poppins(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: _label,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                'Join Sekitaran and discover',
+                maxLines: 1,
+                softWrap: false,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: _label,
+                ),
               ),
-              children: [
-                const TextSpan(text: 'Join Sekitaran and discover '),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.baseline,
-                  baseline: TextBaseline.alphabetic,
-                  child: Container(
-                    padding: const EdgeInsets.only(bottom: 3),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: _green, width: 1.5),
-                      ),
-                    ),
-                    child: Text(
-                      "what's around you.",
-                      style: GoogleFonts.poppins(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: _label,
-                      ),
-                    ),
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.only(bottom: 3),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: _green, width: 1.5)),
+                ),
+                child: Text(
+                  "what's around you.",
+                  maxLines: 1,
+                  softWrap: false,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: _label,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ],

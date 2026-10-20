@@ -125,9 +125,10 @@ class AuthService {
       throw const AuthFailure('Data username tidak ditemukan.');
     }
     try {
-      await _client
-          .from('profiles')
-          .upsert({'id': user.id, 'username': username}, onConflict: 'id');
+      await _client.from('profiles').upsert({
+        'id': user.id,
+        'username': username,
+      }, onConflict: 'id');
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
         throw const AuthFailure('Username sudah dipakai orang lain.');

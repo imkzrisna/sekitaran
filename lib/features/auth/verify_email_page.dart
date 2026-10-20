@@ -231,44 +231,44 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                         const SizedBox(height: 14),
                         FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text.rich(
-                            softWrap: false,
-                            maxLines: 1,
-                            TextSpan(
-                              style: GoogleFonts.poppins(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                                color: _label,
-                              ),
-                              children: [
-                                const TextSpan(
-                                  text: 'Join Sekitaran and discover ',
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                'Join Sekitaran and discover',
+                                maxLines: 1,
+                                softWrap: false,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: _label,
                                 ),
-                                WidgetSpan(
-                                  alignment: PlaceholderAlignment.baseline,
-                                  baseline: TextBaseline.alphabetic,
-                                  child: Container(
-                                    padding: const EdgeInsets.only(bottom: 3),
-                                    decoration: const BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: _green,
-                                          width: 1.5,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      "what's around you.",
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w500,
-                                        color: _label,
-                                      ),
+                              ),
+                              const SizedBox(width: 5),
+                              Container(
+                                padding: const EdgeInsets.only(bottom: 3),
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: _green,
+                                      width: 1.5,
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
+                                child: Text(
+                                  "what's around you.",
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                    color: _label,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 28),
@@ -337,7 +337,9 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                             InkWell(
                               onTap: _cooldown > 0 ? null : _resend,
                               child: Text(
-                                _cooldown > 0 ? 'Resend in ${_cooldown}s' : 'Resend.',
+                                _cooldown > 0
+                                    ? 'Resend in ${_cooldown}s'
+                                    : 'Resend.',
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
