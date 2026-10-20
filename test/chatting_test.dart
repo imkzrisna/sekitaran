@@ -56,6 +56,7 @@ void main() {
   });
 
   test("when user is not authorized, it should not be able to send message", () async { 
+    // clear all session just for this test
     session.sessionValue = HashMap();
     final message = Message("I'm not authorized", "unauthorizedUser");
     await service.sendChat(message);
