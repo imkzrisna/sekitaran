@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:sekitaran/features/auth/terms_dialog.dart';
 import 'package:sekitaran/features/auth/auth_service.dart';
 import 'package:sekitaran/features/auth/verify_device_page.dart';
@@ -489,6 +490,46 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
 
                     const SizedBox(height: 18),
                     Center(child: _googleButton()),
+                    const SizedBox(height: 28),
+                    Center(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        children: [
+                          Text(
+                            'Already have an account?',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: _label,
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => const LoginPage(),
+                              ),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.only(bottom: 1),
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(color: _gold, width: 1.2),
+                                ),
+                              ),
+                              child: Text(
+                                'Login',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: _gold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
