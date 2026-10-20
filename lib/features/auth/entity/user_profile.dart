@@ -1,9 +1,9 @@
 import 'package:uuid/uuid.dart';
 
 class UserProfile {
-  new(this.username, this.email);
+  new(this.username);
 
-  Uuid userId = Uuid(); 
+  String userId = Uuid().v4(); 
   String username = "";
   String email = "";
   String avatarUrl = "";
@@ -12,35 +12,33 @@ class UserProfile {
   String fullName = "";
   String role = "";
 
-  UserProfile withId(Uuid id) {
-    final profile = UserProfile(username, email);
+  UserProfile withId(String id) {
+    userId = id;
 
-    profile.userId = id;
-
-    return profile;
+    return this;
   }
 
   UserProfile withAvatarUrl(String url) {
-    final profile = UserProfile(username, email);
+    avatarUrl = url;
 
-    profile.avatarUrl = url;
-
-    return profile;
+    return this;
   }
 
   UserProfile withRole(String role) {
-    final profile = UserProfile(username, email);
+    this.role = role;
 
-    profile.role = role;
-
-    return profile;
+    return this;
   }
 
   UserProfile withFullName(String fullName) {
-    final profile = UserProfile(username, email);
+    this.fullName = fullName;
 
-    profile.fullName = fullName;
+    return this;
+  }
 
-    return profile;
+  UserProfile withEmail(String email) {
+    this.email = email;
+
+    return this;
   }
 }

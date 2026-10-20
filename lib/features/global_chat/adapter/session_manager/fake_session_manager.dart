@@ -46,7 +46,7 @@ class FakeSessionManager implements SessionManagerInterface {
     required String password,
     required String username,
   }) async {
-    _repo.insertAsync(UserProfile(username, email));
+    _repo.insertAsync(UserProfile(username).withEmail(email));
   }
 
   @override

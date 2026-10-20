@@ -18,4 +18,9 @@ class FakeUserProfileRepository implements UserProfileRepositoryInterface {
   Future<UserProfile?> getByUsernameAsync(String username) async {
     return users.where((user) => user.username == username).firstOrNull;
   }
+
+  @override
+  Future<UserProfile?> getByIdAsync(String id) async {
+    return users.where((user) => user.userId == id).firstOrNull;
+  }
 }

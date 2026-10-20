@@ -7,25 +7,17 @@ class SupabaseUserProfileRepository implements UserProfileRepositoryInterface {
 
   @override
   Future<List<UserProfile>> getAllAsync() async {
-    final profileQuery = await client
+    final queried = await client
       .from("profiles")
-      .select("*")
-      .order("id");
+      .select("*");
 
-    final userQuery = await client
-      .from("auth.users")
-      .select("*")
-      .order("id");
-
-    List<UserProfile> profiles = [];
-
-    for (var profile in profileQuery) {
-      for (var user in userQuery) {
-        profiles.add(UserProfile(profile["username"]));
-      }
-    }
-
-    return profiles;
+    return queried
+      .map((profile) => UserProfile(profile["username"])
+        .withId(profile["id"])
+        .withAvatarUrl(profile["avatar_url"] ?? "")
+        .withRole(profile["role"] ?? "")
+        .withFullName(profile["full_name"] ?? ""))
+      .toList();
   }
 
   @override
@@ -35,15 +27,43 @@ class SupabaseUserProfileRepository implements UserProfileRepositoryInterface {
       .select("*")
       .eq("username", username);
 
-    return query
-      .map((profile) => UserProfile(profile["username"])
-        .withId(profile["id"])
-        .withAvatarUrl(profile["avatarUrl"]))
+    final userProfile = query
+      .map((profile) =>
+        UserProfile(profile["username"])
+          .withId(profile["id"])
+          .withAvatarUrl(profile["avatar_url"] ?? "")
+          .withFullName(profile["full_name"] ?? "")
+          .withRole(profile["role"] ?? "")
+      )
       .firstOrNull;
+
+    return userProfile;
   }
 
   @override
   Future<void> insertAsync(UserProfile user) async {
-    
+    await client
+      .from("profiles")
+      .insert({
+        "username": user.username,
+        "avatar_url": user.avatarUrl,
+        "full_name": user.fullName,
+        "created_at": DateTime.now(),
+        "updated_at": DateTime.now()
+      });
+  }
+
+  @override
+  Future<UserProfile?> getByIdAsync(String id) async {
+    final queried = await client
+      .from("profiles")
+      .select("*")
+      .eq("id", id);
+
+    return queried.map((profile) => UserProfile(profile["username"])
+      .withId(profile["id"])
+      .withFullName(profile["full_name"] ?? "")
+      .withRole(profile["role"] ?? "")
+      .withAvatarUrl(profile["avatar_url"] ?? "")).firstOrNull;
   }
 }
