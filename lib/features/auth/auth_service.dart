@@ -162,6 +162,80 @@ class AuthService {
     }
   }
 
+  /// [identifier] boleh username atau email.
+  Future<void> signIn({
+    required String identifier,
+    required String password,
+  }) async {
+    try {
+      var email = identifier.trim();
+      if (!email.contains('@')) {
+        final res = await _client.rpc(
+          'get_login_email',
+          params: {'p_username': email},
+        );
+        if (res is! String || res.isEmpty) {
+          // Pesan sama dengan password salah, agar username tidak bisa ditebak.
+          throw const AuthFailure('Username atau password salah.');
+        }
+        email = res;
+      }
+      await _client.auth.signInWithPassword(email: email, password: password);
+    } on AuthFailure {
+      rethrow;
+    } on AuthRetryableFetchException {
+      throw const AuthFailure(
+        'Tidak dapat terhubung ke server. Periksa koneksi internet.',
+      );
+    } on AuthException catch (e) {
+      throw AuthFailure(_mapSignInError(e));
+    } on PostgrestException {
+      throw const AuthFailure('Gagal memeriksa akun. Coba lagi.');
+    } catch (_) {
+      throw const AuthFailure(
+        'Terjadi kesalahan. Periksa koneksi internet lalu coba lagi.',
+      );
+    }
+  }
+
+  String _mapSignInError(AuthException e) {
+    switch (e.code) {
+      case 'invalid_credentials':
+        return 'Username/email atau password salah.';
+      case 'email_not_confirmed':
+        return 'Email belum diverifikasi. Selesaikan verifikasi kode terlebih dahulu.';
+      case 'over_request_rate_limit':
+        return 'Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.';
+      case 'user_banned':
+        return 'Akun ini dinonaktifkan.';
+    }
+    final msg = e.message.toLowerCase();
+    if (msg.contains('invalid login credentials')) {
+      return 'Username/email atau password salah.';
+    }
+    if (msg.contains('email not confirmed')) {
+      return 'Email belum diverifikasi. Selesaikan verifikasi kode terlebih dahulu.';
+    }
+    return 'Login gagal: ${e.message}';
+  }
+
+  /// null = baris profil belum ada.
+  Future<Map<String, dynamic>?> fetchMyProfile() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      return await _client
+          .from('profiles')
+          .select('username, role')
+          .eq('id', uid)
+          .maybeSingle();
+    } on PostgrestException catch (e) {
+      throw AuthFailure('Gagal memuat profil: ${e.message}');
+    } catch (_) {
+      throw const AuthFailure('Gagal memuat profil. Periksa koneksi.');
+    }
+  }
+
   String _mapSignUpError(AuthException e) {
     final code = e.code ?? '';
     final msg = e.message.toLowerCase();

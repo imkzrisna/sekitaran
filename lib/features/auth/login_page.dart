@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/auth_service.dart';
 import 'package:sekitaran/features/auth/create_account_page.dart';
+import 'package:sekitaran/features/onboarding/role_selection_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -23,6 +25,7 @@ class _LoginPageState extends State<LoginPage> {
   final _username = TextEditingController();
   final _password = TextEditingController();
   bool _hidePass = true;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -31,12 +34,43 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      // TODO: login ke Supabase di tahap berikutnya
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Validasi berhasil (frontend only)')),
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _submit() async {
+    if (_loading) return;
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _loading = true);
+    try {
+      await AuthService.instance.signIn(
+        identifier: _username.text,
+        password: _password.text,
       );
+      var profile = await AuthService.instance.fetchMyProfile();
+      if (profile == null) {
+        // Email sudah terverifikasi tapi profil belum sempat dibuat.
+        await AuthService.instance.ensureProfile();
+        profile = await AuthService.instance.fetchMyProfile();
+      }
+      if (!mounted) return;
+      if (profile == null || profile['role'] == null) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
+        );
+      } else {
+        // TODO: arahkan ke halaman utama setelah halaman itu ada.
+        _snack('Login berhasil sebagai ${profile['username']}');
+      }
+    } on AuthFailure catch (e) {
+      if (!mounted) return;
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -322,14 +356,23 @@ class _LoginPageState extends State<LoginPage> {
                             color: _green,
                             border: Border.all(color: Colors.white, width: 2),
                           ),
-                          child: Text(
-                            'Login',
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  'Login',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
