@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/auth/auth_service.dart';
 import 'package:sekitaran/features/auth/create_account_page.dart';
 import 'package:sekitaran/features/onboarding/role_selection_page.dart';
+import 'package:sekitaran/features/home/business_home_page.dart';
+import 'package:sekitaran/features/home/regular_home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -62,10 +64,20 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
         );
-      } else {
-        // TODO: arahkan ke halaman utama setelah halaman itu ada.
-        _snack('Login berhasil sebagai ${profile['username']}');
+        return;
       }
+
+      _snack('Login berhasil sebagai ${profile['username']}');
+      await Future.delayed(const Duration(milliseconds: 1200));
+      if (!mounted) return;
+
+      final Widget next = profile['role'] == 'business'
+          ? const BusinessHomePage()
+          : const RegularHomePage();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => next),
+        (_) => false,
+      );
     } on AuthFailure catch (e) {
       if (!mounted) return;
       _snack(e.message);
