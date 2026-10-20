@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/home/business_home_page.dart';
 import 'package:sekitaran/features/auth/auth_service.dart';
 
 enum UserRole { regular, business }
@@ -29,10 +30,17 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
     try {
       await AuthService.instance.saveRole(role.name); // 'regular' / 'business'
       if (!mounted) return;
-      // TODO: arahkan ke halaman utama setelah halaman itu ada.
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Role tersimpan.')));
+      if (role == UserRole.business) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const BusinessHomePage()),
+          (_) => false,
+        );
+      } else {
+        // TODO: homepage Reguler User (belum ada desain)
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('Role tersimpan.')));
+      }
     } on AuthFailure catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
