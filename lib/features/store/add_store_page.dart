@@ -64,8 +64,8 @@ class _AddStorePageState extends State<AddStorePage> {
 
   // Daftar menu/produk disimpan per kategori supaya tidak hilang saat berpindah
   final Map<StoreCategory, List<_ItemEntry>> _items = {
-    StoreCategory.restaurant: [_ItemEntry(), _ItemEntry()],
-    StoreCategory.grocery: [_ItemEntry(), _ItemEntry()],
+    StoreCategory.restaurant: [_ItemEntry()],
+    StoreCategory.grocery: [_ItemEntry()],
   };
   final List<_RateEntry> _rates = [_RateEntry()];
 
