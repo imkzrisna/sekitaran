@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/store/location_picker_map.dart';
+import 'package:sekitaran/features/store/maps_link_parser.dart';
+import 'package:sekitaran/features/store/plus_code.dart';
 import 'package:sekitaran/features/store/store_service.dart';
 
 enum StoreCategory {
@@ -61,6 +63,10 @@ class _AddStorePageState extends State<AddStorePage> {
   StoreCategory? _category;
   bool _categoryError = false;
   bool _saving = false;
+  final _mapsLink = TextEditingController();
+  bool _resolvingLink = false;
+  String? _linkMessage;
+  bool _linkMessageIsError = false;
 
   // Daftar menu/produk disimpan per kategori supaya tidak hilang saat berpindah
   final Map<StoreCategory, List<_ItemEntry>> _items = {
@@ -74,6 +80,7 @@ class _AddStorePageState extends State<AddStorePage> {
     _storeName.dispose();
     _latitude.dispose();
     _longitude.dispose();
+    _mapsLink.dispose();
     for (final list in _items.values) {
       for (final e in list) {
         e.dispose();
@@ -225,6 +232,53 @@ class _AddStorePageState extends State<AddStorePage> {
     final n = double.tryParse(t);
     if (n == null) return 'Enter a valid number';
     return n <= 0 ? 'Must be greater than 0' : null;
+  }
+
+  Future<void> _applyMapsLink() async {
+    if (_resolvingLink) return;
+    final raw = _mapsLink.text.trim();
+    if (raw.isEmpty) {
+      setState(() {
+        _linkMessageIsError = true;
+        _linkMessage = 'Tempel link Google Maps terlebih dahulu.';
+      });
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _resolvingLink = true;
+      _linkMessage = null;
+    });
+    try {
+      final curLat = double.tryParse(_latitude.text.trim());
+      final curLng = double.tryParse(_longitude.text.trim());
+      final hasRef = curLat != null && curLng != null;
+      final usedDefaultRef = !hasRef && looksLikePlusCode(raw);
+      final r = await resolveMapsLink(
+        raw,
+        refLat: hasRef ? curLat : -7.7956,
+        refLng: hasRef ? curLng : 110.3695,
+      );
+      if (!mounted) return;
+      _latitude.text = r.lat.toStringAsFixed(6);
+      _longitude.text = r.lng.toStringAsFixed(6);
+      setState(() {
+        _linkMessageIsError = false;
+        _linkMessage = r.approx
+            ? 'Koordinat diambil dari pusat tampilan peta. Geser pin jika kurang tepat.'
+            : (usedDefaultRef
+                  ? 'Plus Code dihitung relatif ke area Yogyakarta. Pastikan pin berada di lokasi yang benar.'
+                  : 'Koordinat berhasil diambil.');
+      });
+    } on MapsLinkException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _linkMessageIsError = true;
+        _linkMessage = e.message;
+      });
+    } finally {
+      if (mounted) setState(() => _resolvingLink = false);
+    }
   }
 
   String? _notEmpty(String? v, String message) =>
@@ -633,6 +687,64 @@ class _AddStorePageState extends State<AddStorePage> {
     ];
   }
 
+  Widget _mapsLinkField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _fieldLabel('Google Maps link', top: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _field(
+                controller: _mapsLink,
+                hint: 'Maps link, coordinates, or Plus Code (optional)',
+                keyboardType: TextInputType.url,
+                dense: true,
+              ),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: _resolvingLink ? null : _applyMapsLink,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: _green,
+                  shape: BoxShape.circle,
+                ),
+                child: _resolvingLink
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.pin_drop_outlined,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+              ),
+            ),
+          ],
+        ),
+        if (_linkMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              _linkMessage!,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                color: _linkMessageIsError ? Colors.red.shade700 : _green,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _dynamicSection() {
     final c = _category;
     if (c == null) return const SizedBox(width: double.infinity);
@@ -643,6 +755,7 @@ class _AddStorePageState extends State<AddStorePage> {
       children: [
         _fieldLabel('Business Location', required: true, top: 18),
         _mapPreview(),
+        _mapsLinkField(),
         const SizedBox(height: 14),
         _coordRow('Latitude', _latitude, 'e.g. -7.7956', 90),
         const SizedBox(height: 8),
