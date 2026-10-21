@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/store/location_picker_map.dart';
 import 'package:sekitaran/features/store/maps_link_parser.dart';
 import 'package:sekitaran/features/store/plus_code.dart';
@@ -783,6 +784,21 @@ class _AddStorePageState extends State<AddStorePage> {
 
   @override
   Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _buildScaffold(context),
+        RadialNavMenu(
+          // Dashboard adalah route pertama (dibuka lewat pushAndRemoveUntil).
+          onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
+          onAddStore: () {}, // sudah berada di halaman ini
+          // TODO: onProfile dan onEdit setelah halamannya ada.
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
@@ -792,7 +808,7 @@ class _AddStorePageState extends State<AddStorePage> {
             constraints: const BoxConstraints(maxWidth: 440),
             child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(28, 8, 28, 48),
+              padding: const EdgeInsets.fromLTRB(28, 8, 28, 140),
               child: Form(
                 key: _formKey,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
