@@ -53,6 +53,7 @@ class _BusinessHomePageState extends State<BusinessHomePage>
   );
 
   bool _open = false;
+  double _syncTurns = 0; // tiap +1 = satu putaran penuh
 
   @override
   void initState() {
@@ -192,7 +193,18 @@ class _BusinessHomePageState extends State<BusinessHomePage>
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-              child: _underlined('Pilih Bisnis'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _underlined('Select Business'),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.storefront_outlined,
+                    color: _green,
+                    size: 22,
+                  ),
+                ],
+              ),
             ),
             Flexible(
               child: ListView(
@@ -325,7 +337,12 @@ class _BusinessHomePageState extends State<BusinessHomePage>
         Flexible(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: canSwitch ? _pickBusiness : null,
+            onTap: canSwitch
+                ? () {
+                    setState(() => _syncTurns += 1);
+                    _pickBusiness();
+                  }
+                : null,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -342,7 +359,12 @@ class _BusinessHomePageState extends State<BusinessHomePage>
                 ),
                 if (canSwitch) ...[
                   const SizedBox(width: 6),
-                  const Icon(Icons.sync, color: _green, size: 22),
+                  AnimatedRotation(
+                    turns: _syncTurns,
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeInOutCubic,
+                    child: const Icon(Icons.sync, color: _green, size: 22),
+                  ),
                 ],
               ],
             ),
@@ -363,12 +385,18 @@ class _BusinessHomePageState extends State<BusinessHomePage>
       children: [
         Icon(icon, color: _green, size: 24),
         const SizedBox(height: 6),
-        Text(
-          title,
-          style: GoogleFonts.poppins(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: _label,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            title,
+            maxLines: 1,
+            softWrap: false,
+            style: GoogleFonts.poppins(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: _label,
+            ),
           ),
         ),
         const SizedBox(height: 10),
@@ -431,17 +459,25 @@ class _BusinessHomePageState extends State<BusinessHomePage>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            _underlined('Recent Comments'),
-            const SizedBox(width: 6),
-            const Icon(
-              Icons.mark_chat_unread_outlined,
-              color: _green,
-              size: 22,
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _underlined('Recent Comments'),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.mark_chat_unread_outlined,
+                  color: _green,
+                  size: 22,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+        const SizedBox(width: 12),
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: hasUnread ? _markAllRead : null,
@@ -603,7 +639,7 @@ class _BusinessHomePageState extends State<BusinessHomePage>
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 440),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(28, 64, 28, 140),
+            padding: const EdgeInsets.fromLTRB(28, 16, 28, 140),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -868,7 +904,7 @@ class _FadeOutTileState extends State<_FadeOutTile>
     final inverse = ReverseAnimation(_t);
     return SizeTransition(
       sizeFactor: inverse,
-      axisAlignment: -1,
+      alignment: Alignment.topCenter,
       child: FadeTransition(
         opacity: inverse,
         child: SlideTransition(
