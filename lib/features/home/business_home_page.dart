@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/home/business_service.dart';
+import 'package:sekitaran/features/store/add_store_page.dart';
 
 class BusinessHomePage extends StatefulWidget {
   const BusinessHomePage({super.key});
@@ -699,9 +700,8 @@ class _BusinessHomePageState extends State<BusinessHomePage>
             icon: Icons.add_circle_outline,
             tooltip: 'Add item',
             angle: 126,
-            onTap: () {
-              /* TODO: tambah produk/jasa */
-            },
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const AddStorePage())),
           ),
           (
             icon: Icons.edit_outlined,
