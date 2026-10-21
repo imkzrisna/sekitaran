@@ -287,31 +287,29 @@ class _BusinessHomePageState extends State<BusinessHomePage>
   }
 
   Widget _subtitle() {
-    final base = GoogleFonts.poppins(
+    final style = GoogleFonts.poppins(
       fontSize: 15,
       fontWeight: FontWeight.w500,
       color: _label,
       height: 1.5,
     );
-    return Text.rich(
-      TextSpan(
-        style: base,
-        children: [
-          const TextSpan(text: 'Hey, '),
-          WidgetSpan(
-            alignment: PlaceholderAlignment.baseline,
-            baseline: TextBaseline.alphabetic,
-            child: Container(
-              padding: const EdgeInsets.only(bottom: 2),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
-              ),
-              child: Text('Store Owner!', style: base.copyWith(height: 1.2)),
-            ),
+    Widget word(String t) => Text(t, style: style);
+    return Wrap(
+      spacing: 5,
+      children: [
+        word('Hey,'),
+        Container(
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
           ),
-          const TextSpan(text: ' Ready to manage your business?'),
-        ],
-      ),
+          child: word('Store Owner!'),
+        ),
+        word('Ready'),
+        word('to'),
+        word('manage'),
+        word('your'),
+        word('business?'),
+      ],
     );
   }
 
@@ -635,11 +633,12 @@ class _BusinessHomePageState extends State<BusinessHomePage>
 
   Widget _content() {
     return SafeArea(
-      child: Center(
+      child: Align(
+        alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 440),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(28, 16, 28, 140),
+            padding: const EdgeInsets.fromLTRB(28, 56, 28, 140),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
