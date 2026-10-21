@@ -701,7 +701,10 @@ class _BusinessHomePageState extends State<BusinessHomePage>
             tooltip: 'Add item',
             angle: 126,
             onTap: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const AddStorePage())),
+                .push(MaterialPageRoute(builder: (_) => const AddStorePage()))
+                .then((_) {
+                  if (mounted) _loadBusinesses();
+                }),
           ),
           (
             icon: Icons.edit_outlined,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/store/location_picker_map.dart';
+import 'package:sekitaran/features/store/store_service.dart';
 
 enum StoreCategory {
   restaurant('Local Restaurant'),
@@ -48,7 +50,6 @@ class _AddStorePageState extends State<AddStorePage> {
   static const _ink = Color(0xFF252525);
   static const _bg = Color(0xFFF2F9F8);
   static const _border = Color(0xFFC9C9C9);
-  static const _grey = Color(0xFF7A7A7A);
   static const _red = Color(0xFFB00000);
   static const _maxEntries = 20;
 
@@ -59,6 +60,7 @@ class _AddStorePageState extends State<AddStorePage> {
 
   StoreCategory? _category;
   bool _categoryError = false;
+  bool _saving = false;
 
   // Daftar menu/produk disimpan per kategori supaya tidak hilang saat berpindah
   final Map<StoreCategory, List<_ItemEntry>> _items = {
@@ -125,14 +127,104 @@ class _AddStorePageState extends State<AddStorePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => disposeRemoved?.call());
   }
 
-  void _save() {
+  void _snack(String m) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  String _dbCategory(StoreCategory c) => switch (c) {
+    StoreCategory.restaurant => 'restaurant',
+    StoreCategory.grocery => 'grocery',
+    StoreCategory.exchange => 'money_changer',
+  };
+
+  Future<void> _save() async {
+    if (_saving) return;
+    FocusScope.of(context).unfocus();
     final ok = _formKey.currentState!.validate();
-    setState(() => _categoryError = _category == null);
-    if (!ok || _category == null) return;
-    // TODO: simpan ke database (tahap backend)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Validation passed (frontend only)')),
-    );
+    final c = _category;
+    setState(() => _categoryError = c == null);
+    if (!ok || c == null) return;
+
+    final items = <Map<String, dynamic>>[];
+    final rates = <Map<String, dynamic>>[];
+
+    if (c == StoreCategory.exchange) {
+      final seen = <String>{};
+      for (final r in _rates) {
+        final code = r.currency.text.trim().toUpperCase();
+        if (code.isEmpty) continue;
+        if (!seen.add(code)) {
+          _snack('Mata uang $code diisi lebih dari sekali.');
+          return;
+        }
+        final fee = r.fee.text.trim();
+        rates.add({
+          'currency_code': code,
+          'foreign_amount': r.priceIn.text.trim(),
+          'idr_amount': r.priceRupiah.text.trim(),
+          'service_fee_idr': fee.isEmpty ? null : fee,
+        });
+      }
+      if (rates.isEmpty) {
+        _snack('Isi minimal satu mata uang.');
+        return;
+      }
+    } else {
+      for (final e in _items[c]!) {
+        final name = e.name.text.trim();
+        if (name.isEmpty) continue;
+        items.add({
+          'name': name,
+          'kind': 'product',
+          'price': e.price.text.trim(),
+        });
+      }
+      if (items.isEmpty) {
+        _snack(
+          c == StoreCategory.restaurant
+              ? 'Isi minimal satu menu.'
+              : 'Isi minimal satu produk.',
+        );
+        return;
+      }
+    }
+
+    setState(() => _saving = true);
+    try {
+      await StoreService.instance.createStore(
+        name: _storeName.text.trim(),
+        category: _dbCategory(c),
+        latitude: double.parse(_latitude.text.trim()),
+        longitude: double.parse(_longitude.text.trim()),
+        items: items,
+        rates: rates,
+      );
+      if (!mounted) return;
+      _snack('Toko berhasil disimpan.');
+      Navigator.of(context).pop(true);
+    } on StoreFailure catch (e) {
+      if (!mounted) return;
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Wajib diisi bila ada field lain di grup yang terisi, dan harus > 0.
+  String? _positiveNumber(
+    String? v,
+    List<TextEditingController> group,
+    String message,
+  ) {
+    final req = _requiredIfAny(v, group, message);
+    if (req != null) return req;
+    final t = (v ?? '').trim();
+    if (t.isEmpty) return null;
+    final n = double.tryParse(t);
+    if (n == null) return 'Enter a valid number';
+    return n <= 0 ? 'Must be greater than 0' : null;
   }
 
   String? _notEmpty(String? v, String message) =>
@@ -339,88 +431,15 @@ class _AddStorePageState extends State<AddStorePage> {
     );
   }
 
-  Widget _mapBox(List<IconData> icons) {
-    return Container(
-      width: 28,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(3),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < icons.length; i++) ...[
-            if (i > 0) const Divider(height: 1, thickness: 1, color: _border),
-            SizedBox(
-              width: 28,
-              height: 28,
-              child: Icon(icons[i], size: 16, color: _ink),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget _mapPreview() {
     return Center(
       child: FractionallySizedBox(
         widthFactor: 0.85,
-        child: AspectRatio(
-          aspectRatio: 1.9,
-          child: ClipRect(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Letakkan screenshot peta di assets/images/map_placeholder.png (opsional)
-                Image.asset(
-                  'assets/images/map_placeholder.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    color: const Color(0xFFE9E3D8),
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.map_outlined, color: _grey, size: 32),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Map preview',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: _grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.center,
-                  child: Transform.translate(
-                    offset: const Offset(0, -17),
-                    child: const Icon(
-                      Icons.location_on,
-                      color: _green,
-                      size: 34,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Column(
-                    children: [
-                      _mapBox(const [Icons.my_location]),
-                      const SizedBox(height: 6),
-                      _mapBox(const [Icons.add, Icons.remove]),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+        child: LocationPickerMap(
+          latController: _latitude,
+          lngController: _longitude,
+          height: 200,
+          onMessage: _snack,
         ),
       ),
     );
@@ -514,14 +533,23 @@ class _AddStorePageState extends State<AddStorePage> {
             color: _green,
             border: Border.all(color: Colors.white, width: 2),
           ),
-          child: Text(
-            text,
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
+          child: _saving
+              ? const SizedBox(
+                  width: 26,
+                  height: 26,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  text,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
         ),
       ),
     );
@@ -562,11 +590,22 @@ class _AddStorePageState extends State<AddStorePage> {
         controller: r.currency,
         hint: 'e.g. USD',
         formatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z ]')),
-          LengthLimitingTextInputFormatter(30),
+          FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
+          LengthLimitingTextInputFormatter(3),
+          TextInputFormatter.withFunction(
+            (old, next) => next.copyWith(text: next.text.toUpperCase()),
+          ),
         ],
         onChanged: (_) => setState(() {}),
-        validator: (v) => _requiredIfAny(v, all, 'Enter the currency'),
+        validator: (v) {
+          final req = _requiredIfAny(v, all, 'Enter the currency code');
+          if (req != null) return req;
+          final t = (v ?? '').trim();
+          if (t.isNotEmpty && t.length != 3) {
+            return 'Use a 3-letter code, e.g. USD';
+          }
+          return null;
+        },
       ),
       _fieldLabel('Price in (${code.isEmpty ? '__' : code})', top: 14),
       _field(
@@ -574,7 +613,7 @@ class _AddStorePageState extends State<AddStorePage> {
         hint: 'Enter rate',
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-        validator: (v) => _requiredIfAny(v, all, 'Enter the rate'),
+        validator: (v) => _positiveNumber(v, all, 'Enter the rate'),
       ),
       _fieldLabel('Price convert to rupiah', top: 14),
       _field(
@@ -582,7 +621,7 @@ class _AddStorePageState extends State<AddStorePage> {
         hint: 'Enter amount (IDR)',
         keyboardType: TextInputType.number,
         formatters: [FilteringTextInputFormatter.digitsOnly],
-        validator: (v) => _requiredIfAny(v, all, 'Enter the amount in rupiah'),
+        validator: (v) => _positiveNumber(v, all, 'Enter the amount in rupiah'),
       ),
       _fieldLabel('Service Fee (IDR)', top: 14),
       _field(
