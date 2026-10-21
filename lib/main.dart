@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/supabase_config.dart';
-import 'package:sekitaran/features/auth/create_account_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF103D17)),
       ),
-      home: const CreateAccountPage(),
+      home: const LoginPage(),
     );
   }
 }
