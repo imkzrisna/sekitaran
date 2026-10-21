@@ -8,12 +8,13 @@ import 'package:sekitaran/features/store/plus_code.dart';
 import 'package:sekitaran/features/store/store_service.dart';
 
 enum StoreCategory {
-  restaurant('Local Restaurant'),
-  grocery('Grocery Store'),
-  exchange('Money Changer');
+  restaurant('Local Restaurant', Icons.restaurant_outlined),
+  grocery('Grocery Store', Icons.shopping_basket_outlined),
+  exchange('Money Changer', Icons.currency_exchange);
 
-  const StoreCategory(this.label);
+  const StoreCategory(this.label, this.icon);
   final String label;
+  final IconData icon;
 }
 
 class _ItemEntry {
@@ -40,6 +41,44 @@ class _RateEntry {
   }
 }
 
+/// Memformat angka dengan titik ribuan saat mengetik: 10000 -> 10.000
+class ThousandsSeparatorFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return const TextEditingValue();
+    final trimmed = digits.replaceFirst(RegExp(r'^0+(?=\d)'), '');
+
+    final buf = StringBuffer();
+    for (var i = 0; i < trimmed.length; i++) {
+      if (i > 0 && (trimmed.length - i) % 3 == 0) buf.write('.');
+      buf.write(trimmed[i]);
+    }
+    final text = buf.toString();
+
+    // Pertahankan posisi kursor berdasarkan jumlah digit di sebelah kirinya
+    final cursor = newValue.selection.baseOffset.clamp(0, newValue.text.length);
+    final before = newValue.text
+        .substring(0, cursor)
+        .replaceAll(RegExp(r'[^0-9]'), '')
+        .length;
+    final target = before > trimmed.length ? trimmed.length : before;
+    var offset = 0;
+    var seen = 0;
+    while (offset < text.length && seen < target) {
+      if (text[offset] != '.') seen++;
+      offset++;
+    }
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: offset),
+    );
+  }
+}
+
 class AddStorePage extends StatefulWidget {
   const AddStorePage({super.key});
 
@@ -53,6 +92,7 @@ class _AddStorePageState extends State<AddStorePage> {
   static const _ink = Color(0xFF252525);
   static const _bg = Color(0xFFF2F9F8);
   static const _border = Color(0xFFC9C9C9);
+  static const _grey = Color(0xFF7A7A7A);
   static const _red = Color(0xFFB00000);
   static const _maxEntries = 20;
 
@@ -103,6 +143,7 @@ class _AddStorePageState extends State<AddStorePage> {
 
   void _selectCategory(StoreCategory c) {
     if (_category == c) return;
+    FocusScope.of(context).unfocus();
     setState(() {
       _category = c;
       _categoryError = false;
@@ -121,15 +162,16 @@ class _AddStorePageState extends State<AddStorePage> {
     });
   }
 
-  void _removeEntry() {
+  void _removeAt(int index) {
     final c = _category;
     if (c == null || _entryCount <= 1) return;
+    FocusScope.of(context).unfocus();
     VoidCallback? disposeRemoved;
     setState(() {
       if (c == StoreCategory.exchange) {
-        disposeRemoved = _rates.removeLast().dispose;
+        disposeRemoved = _rates.removeAt(index).dispose;
       } else {
-        disposeRemoved = _items[c]!.removeLast().dispose;
+        disposeRemoved = _items[c]!.removeAt(index).dispose;
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => disposeRemoved?.call());
@@ -167,11 +209,11 @@ class _AddStorePageState extends State<AddStorePage> {
           _snack('Mata uang $code diisi lebih dari sekali.');
           return;
         }
-        final fee = r.fee.text.trim();
+        final fee = _digits(r.fee.text);
         rates.add({
           'currency_code': code,
           'foreign_amount': r.priceIn.text.trim(),
-          'idr_amount': r.priceRupiah.text.trim(),
+          'idr_amount': _digits(r.priceRupiah.text),
           'service_fee_idr': fee.isEmpty ? null : fee,
         });
       }
@@ -186,7 +228,7 @@ class _AddStorePageState extends State<AddStorePage> {
         items.add({
           'name': name,
           'kind': 'product',
-          'price': e.price.text.trim(),
+          'price': _digits(e.price.text),
         });
       }
       if (items.isEmpty) {
@@ -282,6 +324,23 @@ class _AddStorePageState extends State<AddStorePage> {
     }
   }
 
+  /// Ambil angkanya saja: "10.000" -> "10000"
+  String _digits(String s) => s.replaceAll(RegExp(r'[^0-9]'), '');
+
+  /// Seperti [_positiveNumber], tetapi untuk rupiah berformat titik ribuan.
+  String? _positiveIdr(
+    String? v,
+    List<TextEditingController> group,
+    String message,
+  ) {
+    final req = _requiredIfAny(v, group, message);
+    if (req != null) return req;
+    if ((v ?? '').trim().isEmpty) return null;
+    final n = int.tryParse(_digits(v ?? ''));
+    if (n == null) return 'Enter a valid number';
+    return n <= 0 ? 'Must be greater than 0' : null;
+  }
+
   String? _notEmpty(String? v, String message) =>
       (v == null || v.trim().isEmpty) ? message : null;
 
@@ -313,11 +372,15 @@ class _AddStorePageState extends State<AddStorePage> {
     StoreCategory.exchange => 'Save Exchange Rates',
   };
 
-  // ---------- Komponen kecil ----------
+  // ---------- Komponen dasar ----------
 
-  InputDecoration _decoration(String hint, {bool dense = false}) {
+  InputDecoration _decoration(
+    String hint, {
+    bool dense = false,
+    Color fill = _bg,
+  }) {
     OutlineInputBorder border(Color c) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(2),
+      borderRadius: BorderRadius.circular(10),
       borderSide: BorderSide(color: c, width: 1.2),
     );
     return InputDecoration(
@@ -330,11 +393,11 @@ class _AddStorePageState extends State<AddStorePage> {
       errorStyle: GoogleFonts.poppins(fontSize: 11, color: Colors.red.shade700),
       errorMaxLines: 2,
       filled: true,
-      fillColor: _bg,
+      fillColor: fill,
       isDense: dense,
       contentPadding: EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: dense ? 10 : 14,
+        horizontal: 14,
+        vertical: dense ? 12 : 14,
       ),
       enabledBorder: border(_border),
       focusedBorder: border(_green),
@@ -351,6 +414,7 @@ class _AddStorePageState extends State<AddStorePage> {
     List<TextInputFormatter>? formatters,
     ValueChanged<String>? onChanged,
     bool dense = false,
+    Color fill = _bg,
   }) {
     return TextFormField(
       key: ObjectKey(controller),
@@ -360,7 +424,7 @@ class _AddStorePageState extends State<AddStorePage> {
       validator: validator,
       onChanged: onChanged,
       style: GoogleFonts.poppins(fontSize: 14, color: _ink),
-      decoration: _decoration(hint, dense: dense),
+      decoration: _decoration(hint, dense: dense, fill: fill),
     );
   }
 
@@ -375,7 +439,7 @@ class _AddStorePageState extends State<AddStorePage> {
             child: Text(
               text,
               style: GoogleFonts.poppins(
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: _ink,
               ),
@@ -386,7 +450,7 @@ class _AddStorePageState extends State<AddStorePage> {
             Text(
               '*',
               style: GoogleFonts.poppins(
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: _red,
               ),
@@ -396,6 +460,8 @@ class _AddStorePageState extends State<AddStorePage> {
       ),
     );
   }
+
+  // ---------- Header halaman ----------
 
   Widget _title() {
     return FittedBox(
@@ -449,35 +515,113 @@ class _AddStorePageState extends State<AddStorePage> {
     );
   }
 
-  Widget _categoryOption(StoreCategory c) {
+  // ---------- Kartu ----------
+
+  Widget _sectionCard({
+    required IconData icon,
+    required String title,
+    bool required = false,
+    String? caption,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: _accent, width: 1.5),
+                    ),
+                  ),
+                  child: Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _ink,
+                    ),
+                  ),
+                ),
+              ),
+              if (required) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '*',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: _red,
+                  ),
+                ),
+              ],
+              const SizedBox(width: 8),
+              Icon(icon, color: _green, size: 22),
+            ],
+          ),
+          if (caption != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                caption,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: _grey,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _categoryTile(StoreCategory c) {
     final selected = _category == c;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _selectCategory(c),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
+        decoration: BoxDecoration(
+          color: selected ? _green : _bg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected
+                ? _green
+                : (_categoryError ? Colors.red.shade400 : _border),
+            width: 1.2,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: selected ? _green : Colors.white,
-                border: Border.all(
-                  color: selected ? _green : _border,
-                  width: 1.5,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
+            Icon(c.icon, size: 24, color: selected ? Colors.white : _green),
+            const SizedBox(height: 8),
             Text(
               c.label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
               style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: _ink,
+                fontSize: 12.5,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected ? Colors.white : _ink,
+                height: 1.25,
               ),
             ),
           ],
@@ -486,90 +630,406 @@ class _AddStorePageState extends State<AddStorePage> {
     );
   }
 
-  Widget _mapPreview() {
-    return Center(
-      child: FractionallySizedBox(
-        widthFactor: 0.85,
-        child: LocationPickerMap(
-          latController: _latitude,
-          lngController: _longitude,
-          height: 200,
-          onMessage: _snack,
+  Widget _storeInfoCard() {
+    final cats = StoreCategory.values;
+    return _sectionCard(
+      icon: Icons.storefront_outlined,
+      title: 'Store Information',
+      children: [
+        _fieldLabel('Store Name', required: true, top: 14),
+        _field(
+          controller: _storeName,
+          hint: 'Enter your store name',
+          validator: (v) => _notEmpty(v, 'Store name is required'),
         ),
-      ),
+        _fieldLabel('Category', required: true, top: 16),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < cats.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(child: _categoryTile(cats[i])),
+              ],
+            ],
+          ),
+        ),
+        if (_categoryError)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 4),
+            child: Text(
+              'Please choose a category',
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                color: Colors.red.shade700,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _coordRow(
+  // ---------- Lokasi ----------
+
+  Widget _mapsLinkField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _fieldLabel('Google Maps link', top: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _field(
+                controller: _mapsLink,
+                hint: 'Maps link, coordinates, or Plus Code (optional)',
+                keyboardType: TextInputType.url,
+                dense: true,
+              ),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: _resolvingLink ? null : _applyMapsLink,
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: const BoxDecoration(
+                  color: _green,
+                  shape: BoxShape.circle,
+                ),
+                child: _resolvingLink
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.pin_drop_outlined,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+              ),
+            ),
+          ],
+        ),
+        if (_linkMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              _linkMessage!,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                color: _linkMessageIsError ? Colors.red.shade700 : _green,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _coordField(
     String label,
     TextEditingController controller,
     String hint,
     double limit,
   ) {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 112,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 9),
-            child: Row(
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: _ink,
-                  ),
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  '*',
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: _red,
-                  ),
-                ),
-              ],
-            ),
+        _fieldLabel(label, required: true, top: 14),
+        _field(
+          controller: controller,
+          hint: hint,
+          dense: true,
+          keyboardType: const TextInputType.numberWithOptions(
+            decimal: true,
+            signed: true,
           ),
-        ),
-        Expanded(
-          child: _field(
-            controller: controller,
-            hint: hint,
-            dense: true,
-            keyboardType: const TextInputType.numberWithOptions(
-              decimal: true,
-              signed: true,
-            ),
-            formatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
-            ],
-            validator: (v) => _validateCoord(v, label, limit),
-          ),
+          formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]'))],
+          validator: (v) => _validateCoord(v, label, limit),
         ),
       ],
     );
   }
 
-  Widget _roundButton(IconData icon, VoidCallback? onTap) {
+  Widget _locationCard() {
+    return _sectionCard(
+      icon: Icons.place_outlined,
+      title: 'Business Location',
+      required: true,
+      caption: 'Tap the map to drop a pin, or paste a Google Maps link.',
+      children: [
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: LocationPickerMap(
+            latController: _latitude,
+            lngController: _longitude,
+            height: 210,
+            onMessage: _snack,
+          ),
+        ),
+        _mapsLinkField(),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _coordField('Latitude', _latitude, 'e.g. -7.7956', 90),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _coordField('Longitude', _longitude, 'e.g. 110.3695', 180),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ---------- Menu / produk / kurs ----------
+
+  Widget _entryCard({
+    Key? key,
+    required int number,
+    required String title,
+    required bool canRemove,
+    required VoidCallback onRemove,
+    required List<Widget> children,
+  }) {
+    return Container(
+      key: key,
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
+      decoration: BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _border.withValues(alpha: 0.7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 36,
+            child: Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: _green,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '$number',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _ink,
+                    ),
+                  ),
+                ),
+                if (canRemove)
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onRemove,
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Icon(
+                        Icons.delete_outline,
+                        size: 20,
+                        color: Colors.red.shade400,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _itemCard(StoreCategory c, int i) {
+    final noun = c == StoreCategory.restaurant ? 'Menu' : 'Product';
+    final lower = noun.toLowerCase();
+    final e = _items[c]![i];
+    final group = [e.name, e.price];
+    return _entryCard(
+      key: ObjectKey(e),
+      number: i + 1,
+      title: '$noun ${i + 1}',
+      canRemove: _entryCount > 1,
+      onRemove: () => _removeAt(i),
+      children: [
+        _fieldLabel('$noun name', top: 4),
+        _field(
+          controller: e.name,
+          hint: 'Enter $lower name',
+          fill: Colors.white,
+          validator: (v) => _requiredIfAny(v, group, 'Enter the $lower name'),
+        ),
+        _fieldLabel('Price (IDR)', top: 12),
+        _field(
+          controller: e.price,
+          hint: 'Enter price',
+          fill: Colors.white,
+          keyboardType: TextInputType.number,
+          formatters: [ThousandsSeparatorFormatter()],
+          validator: (v) => _requiredIfAny(v, group, 'Enter the price'),
+        ),
+      ],
+    );
+  }
+
+  Widget _rateCard(int i) {
+    final r = _rates[i];
+    final all = [r.currency, r.priceIn, r.priceRupiah, r.fee];
+    final code = r.currency.text.trim();
+    return _entryCard(
+      key: ObjectKey(r),
+      number: i + 1,
+      title: code.isEmpty
+          ? 'Currency ${i + 1}'
+          : 'Currency ${i + 1} \u00B7 $code',
+      canRemove: _entryCount > 1,
+      onRemove: () => _removeAt(i),
+      children: [
+        _fieldLabel('Foreign currency', top: 4),
+        _field(
+          controller: r.currency,
+          hint: 'e.g. USD',
+          fill: Colors.white,
+          formatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
+            LengthLimitingTextInputFormatter(3),
+            TextInputFormatter.withFunction(
+              (old, next) => next.copyWith(text: next.text.toUpperCase()),
+            ),
+          ],
+          onChanged: (_) => setState(() {}),
+          validator: (v) {
+            final req = _requiredIfAny(v, all, 'Enter the currency code');
+            if (req != null) return req;
+            final t = (v ?? '').trim();
+            if (t.isNotEmpty && t.length != 3) {
+              return 'Use a 3-letter code, e.g. USD';
+            }
+            return null;
+          },
+        ),
+        _fieldLabel('Price in (${code.isEmpty ? '__' : code})', top: 12),
+        _field(
+          controller: r.priceIn,
+          hint: 'Enter rate',
+          fill: Colors.white,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+          validator: (v) => _positiveNumber(v, all, 'Enter the rate'),
+        ),
+        _fieldLabel('Price convert to rupiah', top: 12),
+        _field(
+          controller: r.priceRupiah,
+          hint: 'Enter amount (IDR)',
+          fill: Colors.white,
+          keyboardType: TextInputType.number,
+          formatters: [ThousandsSeparatorFormatter()],
+          validator: (v) => _positiveIdr(v, all, 'Enter the amount in rupiah'),
+        ),
+        _fieldLabel('Service Fee (IDR)', top: 12),
+        _field(
+          controller: r.fee,
+          hint: 'Enter service fee (optional)',
+          fill: Colors.white,
+          keyboardType: TextInputType.number,
+          formatters: [ThousandsSeparatorFormatter()],
+        ),
+      ],
+    );
+  }
+
+  Widget _addButton(String text, VoidCallback? onTap) {
     return Opacity(
       opacity: onTap == null ? 0.4 : 1,
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
-          width: 38,
-          height: 38,
-          decoration: const BoxDecoration(
-            color: _green,
-            shape: BoxShape.circle,
+          width: double.infinity,
+          margin: const EdgeInsets.only(top: 14),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _green, width: 1.2),
           ),
-          child: Icon(icon, color: Colors.white, size: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.add_circle_outline, size: 20, color: _green),
+              const SizedBox(width: 8),
+              Text(
+                text,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _green,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _itemsCard(StoreCategory c) {
+    final isExchange = c == StoreCategory.exchange;
+    final (String title, IconData icon, String addLabel) = switch (c) {
+      StoreCategory.restaurant => (
+        'Menu & Prices',
+        Icons.restaurant_menu,
+        'Add another menu',
+      ),
+      StoreCategory.grocery => (
+        'Products & Prices',
+        Icons.inventory_2_outlined,
+        'Add another product',
+      ),
+      StoreCategory.exchange => (
+        'Exchange Rates',
+        Icons.currency_exchange,
+        'Add another currency',
+      ),
+    };
+    return _sectionCard(
+      icon: icon,
+      title: title,
+      caption: isExchange
+          ? 'Add the currencies you exchange. Empty entries are ignored.'
+          : 'Add what you sell. Empty entries are ignored.',
+      children: [
+        if (isExchange)
+          for (var i = 0; i < _rates.length; i++) _rateCard(i)
+        else
+          for (var i = 0; i < _items[c]!.length; i++) _itemCard(c, i),
+        _addButton(addLabel, _entryCount < _maxEntries ? _addEntry : null),
+      ],
     );
   }
 
@@ -610,173 +1070,16 @@ class _AddStorePageState extends State<AddStorePage> {
     );
   }
 
-  // ---------- Isi form per kategori ----------
-
-  List<Widget> _itemGroup(StoreCategory c, int i) {
-    final noun = c == StoreCategory.restaurant ? 'Menu' : 'Product';
-    final lower = noun.toLowerCase();
-    final e = _items[c]![i];
-    final group = [e.name, e.price];
-    return [
-      _fieldLabel('$noun -${i + 1}', top: i == 0 ? 14 : 24),
-      _field(
-        controller: e.name,
-        hint: 'Enter $lower name',
-        validator: (v) => _requiredIfAny(v, group, 'Enter the $lower name'),
-      ),
-      _fieldLabel('Price', top: 14),
-      _field(
-        controller: e.price,
-        hint: 'Enter price (IDR)',
-        keyboardType: TextInputType.number,
-        formatters: [FilteringTextInputFormatter.digitsOnly],
-        validator: (v) => _requiredIfAny(v, group, 'Enter the price'),
-      ),
-    ];
-  }
-
-  List<Widget> _rateGroup(int i) {
-    final r = _rates[i];
-    final all = [r.currency, r.priceIn, r.priceRupiah, r.fee];
-    final code = r.currency.text.trim();
-    return [
-      _fieldLabel('Foreign Currency -${i + 1}', top: i == 0 ? 14 : 24),
-      _field(
-        controller: r.currency,
-        hint: 'e.g. USD',
-        formatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
-          LengthLimitingTextInputFormatter(3),
-          TextInputFormatter.withFunction(
-            (old, next) => next.copyWith(text: next.text.toUpperCase()),
-          ),
-        ],
-        onChanged: (_) => setState(() {}),
-        validator: (v) {
-          final req = _requiredIfAny(v, all, 'Enter the currency code');
-          if (req != null) return req;
-          final t = (v ?? '').trim();
-          if (t.isNotEmpty && t.length != 3) {
-            return 'Use a 3-letter code, e.g. USD';
-          }
-          return null;
-        },
-      ),
-      _fieldLabel('Price in (${code.isEmpty ? '__' : code})', top: 14),
-      _field(
-        controller: r.priceIn,
-        hint: 'Enter rate',
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-        validator: (v) => _positiveNumber(v, all, 'Enter the rate'),
-      ),
-      _fieldLabel('Price convert to rupiah', top: 14),
-      _field(
-        controller: r.priceRupiah,
-        hint: 'Enter amount (IDR)',
-        keyboardType: TextInputType.number,
-        formatters: [FilteringTextInputFormatter.digitsOnly],
-        validator: (v) => _positiveNumber(v, all, 'Enter the amount in rupiah'),
-      ),
-      _fieldLabel('Service Fee (IDR)', top: 14),
-      _field(
-        controller: r.fee,
-        hint: 'Enter service fee (optional)',
-        keyboardType: TextInputType.number,
-        formatters: [FilteringTextInputFormatter.digitsOnly],
-      ),
-    ];
-  }
-
-  Widget _mapsLinkField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _fieldLabel('Google Maps link', top: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _field(
-                controller: _mapsLink,
-                hint: 'Maps link, coordinates, or Plus Code (optional)',
-                keyboardType: TextInputType.url,
-                dense: true,
-              ),
-            ),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: _resolvingLink ? null : _applyMapsLink,
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                  color: _green,
-                  shape: BoxShape.circle,
-                ),
-                child: _resolvingLink
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.pin_drop_outlined,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-              ),
-            ),
-          ],
-        ),
-        if (_linkMessage != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              _linkMessage!,
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                color: _linkMessageIsError ? Colors.red.shade700 : _green,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
   Widget _dynamicSection() {
     final c = _category;
     if (c == null) return const SizedBox(width: double.infinity);
 
-    final isExchange = c == StoreCategory.exchange;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _fieldLabel('Business Location', required: true, top: 18),
-        _mapPreview(),
-        _mapsLinkField(),
-        const SizedBox(height: 14),
-        _coordRow('Latitude', _latitude, 'e.g. -7.7956', 90),
-        const SizedBox(height: 8),
-        _coordRow('Longitude', _longitude, 'e.g. 110.3695', 180),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            _roundButton(
-              Icons.add,
-              _entryCount < _maxEntries ? _addEntry : null,
-            ),
-            const SizedBox(width: 14),
-            _roundButton(Icons.remove, _entryCount > 1 ? _removeEntry : null),
-          ],
-        ),
-        if (isExchange)
-          for (var i = 0; i < _rates.length; i++) ..._rateGroup(i)
-        else
-          for (var i = 0; i < _items[c]!.length; i++) ..._itemGroup(c, i),
-        const SizedBox(height: 28),
+        _locationCard(),
+        _itemsCard(c),
+        const SizedBox(height: 24),
         _saveButton(_saveLabel(c)),
       ],
     );
@@ -808,14 +1111,13 @@ class _AddStorePageState extends State<AddStorePage> {
             constraints: const BoxConstraints(maxWidth: 440),
             child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(28, 8, 28, 140),
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 140),
               child: Form(
                 key: _formKey,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Tombol kembali sementara, sebelum menu melingkar dipasang di halaman ini
                     IconButton(
                       onPressed: () => Navigator.of(context).maybePop(),
                       padding: EdgeInsets.zero,
@@ -830,31 +1132,21 @@ class _AddStorePageState extends State<AddStorePage> {
                         color: _green,
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    _title(),
-                    const SizedBox(height: 12),
-                    _subtitle(),
-                    _fieldLabel('Store Name', required: true, top: 22),
-                    _field(
-                      controller: _storeName,
-                      hint: 'Enter your store name',
-                      validator: (v) => _notEmpty(v, 'Store name is required'),
-                    ),
-                    _fieldLabel('Category', required: true, top: 14),
-                    for (final c in StoreCategory.values) _categoryOption(c),
-                    if (_categoryError)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2, left: 32),
-                        child: Text(
-                          'Please choose a category',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            color: Colors.red.shade700,
-                          ),
-                        ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _title(),
+                          const SizedBox(height: 12),
+                          _subtitle(),
+                        ],
                       ),
+                    ),
+                    _storeInfoCard(),
                     AnimatedSize(
-                      duration: const Duration(milliseconds: 220),
+                      duration: const Duration(milliseconds: 240),
                       curve: Curves.easeOut,
                       alignment: Alignment.topCenter,
                       child: _dynamicSection(),
