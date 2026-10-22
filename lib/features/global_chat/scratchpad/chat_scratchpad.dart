@@ -21,6 +21,16 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
   late final ChatService _service;
   late final SupabaseSessionManager _session;
 
+  late final Future<void> _initAsyncFuture;
+
+  Future<void> _initAsync() async {
+    await _session.signInWithPassword(
+      email: "example@gmail.com",
+      password: "password",
+    );
+    await _service.sendChat(Message("Hello again", "anotherUser"));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -28,14 +38,14 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
     _session = SupabaseSessionManager();
     _gateway = SupabaseChatGateway(_userRepo);
     _service = ChatService(_gateway, _session);
-    
+
     // Fire-and-forget sign in - StreamBuilder will rebuild when session is available
     // _session.signInWithPassword(
-    //   email: dotenv.env["INTEGRATION_TEST_EMAIL"]!, 
+    //   email: dotenv.env["INTEGRATION_TEST_EMAIL"]!,
     //   password: dotenv.env["INTEGRATION_TEST_PASSWORD"]!,
     // );
-    _session.signInWithPassword(email: "example@gmail.com", password: "password");
-    _service.sendChat(Message("Hello again", "anotherUser"));
+
+    _initAsyncFuture = _initAsync();
   }
 
   @override
@@ -48,39 +58,46 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Global Chat Scratchpad')),
-      body: StreamBuilder<AuthSession?>(
-        stream: _session.sessionChanges,
-        initialData: _session.currentSession,
-        builder: (context, sessionSnapshot) {
-          final session = sessionSnapshot.data;
-          
-          if (session == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          final chatListStream = _service.chatList;
-          
-          return StreamBuilder<List<Message>>(
-            stream: chatListStream,
-            builder: (context, messageSnapshot) {
-              if (messageSnapshot.hasError) {
-                return Center(child: Text('Error: ${messageSnapshot.error}'));
-              }
-              if (!messageSnapshot.hasData) {
+      body: FutureBuilder(
+        future: _initAsyncFuture,
+        builder: (context, snapshot) {
+          return StreamBuilder<AuthSession?>(
+            stream: _session.sessionChanges,
+            initialData: _session.currentSession,
+            builder: (context, sessionSnapshot) {
+              final session = sessionSnapshot.data;
+
+              if (session == null) {
                 return const Center(child: CircularProgressIndicator());
               }
-              final messages = messageSnapshot.data!;
-              if (messages.isEmpty) {
-                return const Center(child: Text('No messages yet'));
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: messages.length,
-                itemBuilder: (context, index) {
-                  final message = messages[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text('${message.username}: ${message.message}'),
+
+              final chatListStream = _service.chatList;
+
+              return StreamBuilder<List<Message>>(
+                stream: chatListStream,
+                builder: (context, messageSnapshot) {
+                  if (messageSnapshot.hasError) {
+                    return Center(
+                      child: Text('Error: ${messageSnapshot.error}'),
+                    );
+                  }
+                  if (!messageSnapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final messages = messageSnapshot.data!;
+                  if (messages.isEmpty) {
+                    return const Center(child: Text('No messages yet'));
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final message = messages[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('${message.username}: ${message.message}'),
+                      );
+                    },
                   );
                 },
               );

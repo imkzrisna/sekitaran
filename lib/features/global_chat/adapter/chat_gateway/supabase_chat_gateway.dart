@@ -2,6 +2,7 @@ import 'package:sekitaran/features/auth/persistence/user_profile_repository/user
 import 'package:sekitaran/features/global_chat/adapter/chat_gateway/chat_gateway_interface.dart';
 import 'package:sekitaran/features/global_chat/vo/message.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'dart:async';
 
 class SupabaseChatGateway implements ChatGatewayInterface {
@@ -24,13 +25,11 @@ class SupabaseChatGateway implements ChatGatewayInterface {
     if (user == null) {
       throw Exception("user not found!");
     }
-    
-    await client
-      .from("message")
-      .insert({
-        "message": message.message,
-        "user_id": user.userId,
-      });
+
+    await client.from("message").insert({
+      "message": message.message,
+      "username": message.username,
+    });
   }
 
   @override
@@ -39,16 +38,16 @@ class SupabaseChatGateway implements ChatGatewayInterface {
     List<Message> messages = [];
 
     _channel = client
-      .channel('public:messages')
-      .onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'message',
-        callback: (payload) {
-          _fetchAndEmitMessages(controller);
-        },
-      )
-      .subscribe();
+        .channel('public:messages')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'message',
+          callback: (payload) {
+            _fetchAndEmitMessages(controller);
+          },
+        )
+        .subscribe();
 
     // Initial fetch
     _fetchAndEmitMessages(controller);
@@ -56,15 +55,17 @@ class SupabaseChatGateway implements ChatGatewayInterface {
     return controller.stream;
   }
 
-  Future<void> _fetchAndEmitMessages(StreamController<List<Message>> controller) async {
+  Future<void> _fetchAndEmitMessages(
+    StreamController<List<Message>> controller,
+  ) async {
     try {
       final response = await client
           .from('message')
-          .select('*, profiles(username)')
+          .select('*')
           .order('created_at', ascending: true);
 
       final List<Message> messages = (response as List).map((row) {
-        final username = row['profiles']?['username'] as String? ?? 'Unknown';
+        final username = row["username"] as String;
         final messageText = row['message'] as String? ?? '';
         return Message(messageText, username);
       }).toList();
