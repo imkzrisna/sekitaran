@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/core/app_confirm_dialog.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/store/add_store_page.dart'
     show AddStorePage, StoreCategory, ThousandsSeparatorFormatter;
@@ -264,48 +265,14 @@ class _EditStorePageState extends State<EditStorePage> {
     required String message,
     required String action,
   }) async {
-    final r = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _bg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          title,
-          style: GoogleFonts.poppins(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: _ink,
-          ),
-        ),
-        content: Text(
-          message,
-          style: GoogleFonts.poppins(fontSize: 13, color: _grey, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w500,
-                color: _ink,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              action,
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                color: Colors.red.shade600,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return showConfirmDialog(
+      context,
+      title: title,
+      message: message,
+      confirmLabel: action,
+      destructive: true,
+      icon: Icons.delete_outline,
     );
-    return r == true;
   }
 
   Future<void> _pickStore() async {
