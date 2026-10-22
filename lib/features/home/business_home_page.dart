@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/home/all_comments_page.dart';
 import 'package:sekitaran/features/home/business_service.dart';
 import 'package:sekitaran/features/store/add_store_page.dart';
 
@@ -453,26 +454,41 @@ class _BusinessHomePageState extends State<BusinessHomePage>
     );
   }
 
+  void _openAllComments() {
+    final b = _selected;
+    if (b == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            AllCommentsPage(business: b, totalCount: _overview?.commentCount),
+      ),
+    );
+  }
+
   Widget _recentCommentsRow() {
     final hasUnread = (_overview?.unreadCount ?? 0) > 0;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Flexible(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _underlined('Recent Comments'),
-                const SizedBox(width: 6),
-                const Icon(
-                  Icons.mark_chat_unread_outlined,
-                  color: _green,
-                  size: 22,
-                ),
-              ],
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _openAllComments,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _underlined('Recent Comments'),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.mark_chat_unread_outlined,
+                    color: _green,
+                    size: 22,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -613,10 +629,17 @@ class _BusinessHomePageState extends State<BusinessHomePage>
     final unread = _comments.where((c) => !c.isRead).toList();
     if (unread.isEmpty) {
       final total = _overview?.commentCount ?? 0;
-      return _message(
-        total == 0
-            ? 'Belum ada komentar untuk toko ini.'
-            : 'Semua komentar sudah dibaca.',
+      return Padding(
+        padding: const EdgeInsets.only(top: 2, bottom: 12),
+        child: Center(
+          child: Text(
+            total == 0
+                ? 'Belum ada komentar untuk toko ini.'
+                : 'Semua komentar sudah dibaca.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(fontSize: 13, color: _grey),
+          ),
+        ),
       );
     }
     return Column(

@@ -142,6 +142,34 @@ class BusinessService {
     });
   }
 
+  /// Semua komentar toko (terbaru dulu), dimuat bertahap.
+  Future<List<StoreComment>> fetchComments(
+    String businessId, {
+    int limit = 20,
+    int offset = 0,
+  }) {
+    return _guard(() async {
+      final res = await _client.rpc(
+        'business_comments',
+        params: {
+          'p_business_id': businessId,
+          'p_limit': limit,
+          'p_offset': offset,
+        },
+      );
+      return (res as List).map((e) {
+        final r = e as Map<String, dynamic>;
+        return StoreComment(
+          id: r['id'] as String,
+          authorMasked: r['author_masked'] as String,
+          body: r['body'] as String,
+          createdAt: DateTime.parse(r['created_at'] as String).toLocal(),
+          isRead: r['is_read'] as bool,
+        );
+      }).toList();
+    });
+  }
+
   Future<void> markAllCommentsRead(String businessId) {
     return _guard(() async {
       await _client.rpc(
