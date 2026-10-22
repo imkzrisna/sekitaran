@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -23,7 +24,8 @@ class LocationPickerMap extends StatefulWidget {
   State<LocationPickerMap> createState() => _LocationPickerMapState();
 }
 
-class _LocationPickerMapState extends State<LocationPickerMap> {
+class _LocationPickerMapState extends State<LocationPickerMap>
+    with SingleTickerProviderStateMixin {
   static const _green = Color(0xFF103D17);
   static const _defaultCenter = LatLng(-7.7956, 110.3695); // Yogyakarta
 
@@ -33,9 +35,28 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
   bool _syncing = false;
   bool _locating = false;
 
+  // ---- Animasi kamera ----
+  late final AnimationController _anim = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 700),
+  );
+  late final Animation<double> _curve = CurvedAnimation(
+    parent: _anim,
+    curve: Curves.easeInOutCubic,
+  );
+  LatLng _from = _defaultCenter;
+  LatLng _to = _defaultCenter;
+  double _z0 = 13;
+  double _z1 = 13;
+  double _dip = 0;
+
+  Timer? _debounce;
+  Duration _pinDelay = Duration.zero;
+
   @override
   void initState() {
     super.initState();
+    _anim.addListener(_tick);
     widget.latController.addListener(_fromFields);
     widget.lngController.addListener(_fromFields);
     _fromFields();
@@ -43,32 +64,103 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     widget.latController.removeListener(_fromFields);
     widget.lngController.removeListener(_fromFields);
+    _anim.dispose();
     _map.dispose();
     super.dispose();
   }
 
   double? _parse(String s) => double.tryParse(s.trim().replaceAll(',', '.'));
 
-  void _fromFields() {
-    if (_syncing) return;
+  LatLng? _readFields() {
     final lat = _parse(widget.latController.text);
     final lng = _parse(widget.lngController.text);
-    if (lat == null || lng == null) return;
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
-    final p = LatLng(lat, lng);
-    if (_point == p) return;
-    setState(() => _point = p);
-    if (_ready) _map.move(p, _map.camera.zoom);
+    if (lat == null || lng == null) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    return LatLng(lat, lng);
   }
 
-  void _setPoint(LatLng p) {
+  // ---------- Kamera ----------
+
+  void _tick() {
+    if (!_ready) return;
+    final t = _curve.value;
+    final center = LatLng(
+      _from.latitude + (_to.latitude - _from.latitude) * t,
+      _from.longitude + (_to.longitude - _from.longitude) * t,
+    );
+    // Zoom turun sebentar di tengah perjalanan (efek "terbang") untuk jarak jauh
+    final zoom = _z0 + (_z1 - _z0) * t - _dip * math.sin(math.pi * _anim.value);
+    _map.move(center, math.min(19.0, math.max(3.0, zoom)));
+  }
+
+  /// Menggeser kamera ke [target] dengan animasi.
+  /// Mengembalikan durasinya (Duration.zero bila tidak beranimasi).
+  Duration _flyTo(LatLng target, {double? zoom}) {
+    if (!_ready) return Duration.zero;
+    final cam = _map.camera;
+    final from = cam.center;
+    final z0 = cam.zoom;
+    final z1 = math.min(19.0, math.max(3.0, zoom ?? math.max(z0, 16.0)));
+
+    final dLat = target.latitude - from.latitude;
+    final dLng = target.longitude - from.longitude;
+    final km = math.sqrt(dLat * dLat + dLng * dLng) * 111.0;
+    if (km < 0.003 && (z1 - z0).abs() < 0.05) return Duration.zero;
+
+    final spread = math.log(km + 1) / math.ln2;
+    final ms = math.min(1200.0, math.max(450.0, 450 + 140 * spread));
+
+    _from = from;
+    _to = target;
+    _z0 = z0;
+    _z1 = z1;
+    _dip = km < 0.3 ? 0.0 : math.min(2.5, spread * 0.5);
+
+    final d = Duration(milliseconds: ms.round());
+    _anim.duration = d;
+    _anim.forward(from: 0);
+    return d;
+  }
+
+  // ---------- Sinkron field <-> peta ----------
+
+  void _fromFields() {
+    if (_syncing) return;
+    final p = _readFields();
+    if (p == null) return;
+
+    // Sebelum peta siap (mis. saat pertama dibuka): langsung tampilkan.
+    if (!_ready) {
+      if (_point != p) setState(() => _point = p);
+      return;
+    }
+
+    // Tunggu sebentar agar ketikan / pengisian dua kolom digabung jadi satu gerakan.
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      final q = _readFields();
+      if (q == null || q == _point) return;
+      final d = _flyTo(q);
+      setState(() {
+        _pinDelay = d * 0.7; // pin jatuh saat kamera hampir tiba
+        _point = q;
+      });
+    });
+  }
+
+  void _setPoint(LatLng p, {Duration pinDelay = Duration.zero}) {
     _syncing = true;
     widget.latController.text = p.latitude.toStringAsFixed(6);
     widget.lngController.text = p.longitude.toStringAsFixed(6);
     _syncing = false;
-    setState(() => _point = p);
+    setState(() {
+      _pinDelay = pinDelay;
+      _point = p;
+    });
   }
 
   void _msg(String m) => widget.onMessage?.call(m);
@@ -100,8 +192,8 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
         ),
       );
       final p = LatLng(pos.latitude, pos.longitude);
-      _setPoint(p);
-      if (_ready) _map.move(p, 17);
+      final d = _flyTo(p, zoom: 17);
+      _setPoint(p, pinDelay: d * 0.7);
     } on TimeoutException {
       _msg('Lokasi tidak ditemukan. Coba lagi di tempat terbuka.');
     } catch (_) {
@@ -114,7 +206,9 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
   void _zoom(double delta) {
     if (!_ready) return;
     final cam = _map.camera;
-    _map.move(cam.center, (cam.zoom + delta).clamp(3.0, 19.0));
+    // Bila animasi masih berjalan, acuannya zoom tujuan agar ketukan beruntun terakumulasi
+    final base = _anim.isAnimating ? _z1 : cam.zoom;
+    _flyTo(cam.center, zoom: base + delta);
   }
 
   Widget _btn(IconData icon, VoidCallback? onTap, {bool busy = false}) {
@@ -156,6 +250,10 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
                 initialCenter: _point ?? _defaultCenter,
                 initialZoom: _point == null ? 13 : 17,
                 onMapReady: () => _ready = true,
+                // Sentuhan pengguna menghentikan animasi agar tidak berebut kendali
+                onPositionChanged: (_, hasGesture) {
+                  if (hasGesture && _anim.isAnimating) _anim.stop();
+                },
                 onTap: (_, p) => _setPoint(p),
               ),
               children: [
@@ -171,10 +269,9 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
                         width: 40,
                         height: 40,
                         alignment: Alignment.topCenter,
-                        child: const Icon(
-                          Icons.location_on,
-                          color: _green,
-                          size: 40,
+                        child: _PinDrop(
+                          key: ValueKey(_point),
+                          delay: _pinDelay,
                         ),
                       ),
                     ],
@@ -203,6 +300,72 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Pin yang jatuh dan memantul pelan saat muncul di titik baru.
+class _PinDrop extends StatefulWidget {
+  const _PinDrop({super.key, required this.delay});
+
+  final Duration delay;
+
+  @override
+  State<_PinDrop> createState() => _PinDropState();
+}
+
+class _PinDropState extends State<_PinDrop>
+    with SingleTickerProviderStateMixin {
+  static const _green = Color(0xFF103D17);
+
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 520),
+  );
+  late final Animation<double> _v = CurvedAnimation(
+    parent: _c,
+    curve: Curves.easeOutBack,
+  );
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.delay == Duration.zero) {
+      _c.forward();
+    } else {
+      _t = Timer(widget.delay, () {
+        if (mounted) _c.forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _v,
+      builder: (context, child) {
+        final v = _v.value;
+        return Opacity(
+          opacity: math.min(1.0, math.max(0.0, v)),
+          child: Transform.translate(
+            offset: Offset(0, -(1 - v) * 28),
+            child: Transform.scale(
+              scale: 0.7 + 0.3 * v,
+              alignment: Alignment.bottomCenter,
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: const Icon(Icons.location_on, color: _green, size: 40),
     );
   }
 }
