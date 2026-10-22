@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/store/location_picker_map.dart';
+import 'package:sekitaran/features/store/edit_store_page.dart';
 import 'package:sekitaran/features/store/maps_link_parser.dart';
 import 'package:sekitaran/features/store/plus_code.dart';
 import 'package:sekitaran/features/store/store_service.dart';
@@ -1095,6 +1096,8 @@ class _AddStorePageState extends State<AddStorePage> {
           // Dashboard adalah route pertama (dibuka lewat pushAndRemoveUntil).
           onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
           onAddStore: () {}, // sudah berada di halaman ini
+          onEdit: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const EditStorePage())),
           // TODO: onProfile dan onEdit setelah halamannya ada.
         ),
       ],

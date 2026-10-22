@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/home/all_comments_page.dart';
 import 'package:sekitaran/features/home/business_service.dart';
 import 'package:sekitaran/features/store/add_store_page.dart';
+import 'package:sekitaran/features/store/edit_store_page.dart';
 
 class BusinessHomePage extends StatefulWidget {
   const BusinessHomePage({super.key});
@@ -818,9 +819,11 @@ class _BusinessHomePageState extends State<BusinessHomePage>
             icon: Icons.edit_outlined,
             tooltip: 'Edit',
             angle: 90,
-            onTap: () {
-              /* TODO: edit bisnis */
-            },
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const EditStorePage()))
+                .then((_) {
+                  if (mounted) _loadBusinesses();
+                }),
           ),
         ];
 
