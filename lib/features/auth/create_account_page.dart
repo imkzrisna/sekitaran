@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/login_page.dart';
+import 'package:sekitaran/features/auth/terms_dialog.dart';
+import 'package:sekitaran/features/auth/auth_service.dart';
+import 'package:sekitaran/features/auth/verify_device_page.dart';
 import 'package:sekitaran/features/auth/verify_email_page.dart';
 
 class CreateAccountPage extends StatefulWidget {
@@ -27,8 +31,9 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
 
   bool _hidePass = true;
   bool _hideConfirm = true;
-  bool _agree = true;
+  bool _agree = false;
   bool _agreeError = false;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -39,13 +44,33 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_loading) return;
+    FocusScope.of(context).unfocus();
     final valid = _formKey.currentState!.validate();
     setState(() => _agreeError = !_agree);
-    if (valid && _agree) {
-      // TODO: backend di tahap berikutnya
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const VerifyEmailPage()));
+    if (!valid || !_agree) return;
+
+    setState(() => _loading = true);
+    final email = _email.text.trim();
+    try {
+      final result = await AuthService.instance.signUp(
+        username: _username.text.trim(),
+        email: email,
+        password: _password.text,
+      );
+      if (!mounted) return;
+      final Widget next = result == SignUpResult.needsOtp
+          ? VerifyEmailPage(email: email)
+          : const VerifyDevicePage();
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => next));
+    } on AuthFailure catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -219,44 +244,41 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                     const SizedBox(height: 14),
                     FittedBox(
                       fit: BoxFit.scaleDown,
-                      child: Text.rich(
-                        softWrap: false,
-                        maxLines: 1,
-                        TextSpan(
-                          style: GoogleFonts.poppins(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: _label,
-                          ),
-                          children: [
-                            const TextSpan(
-                              text: 'Join Sekitaran and discover ',
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            'Join Sekitaran and discover',
+                            maxLines: 1,
+                            softWrap: false,
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: _label,
                             ),
-                            WidgetSpan(
-                              alignment: PlaceholderAlignment.baseline,
-                              baseline: TextBaseline.alphabetic,
-                              child: Container(
-                                padding: const EdgeInsets.only(bottom: 3),
-                                decoration: const BoxDecoration(
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color: _green,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                                child: Text(
-                                  "what's around you.",
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: _label,
-                                  ),
-                                ),
+                          ),
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.only(bottom: 3),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(color: _green, width: 1.5),
                               ),
                             ),
-                          ],
-                        ),
+                            child: Text(
+                              "what's around you.",
+                              maxLines: 1,
+                              softWrap: false,
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: _label,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 40),
@@ -269,9 +291,14 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                         'Enter your username',
                         'Panjang karakter username minimal 8',
                       ),
-                      validator: (v) => (v == null || v.trim().length < 8)
-                          ? 'Username minimal 8 karakter'
-                          : null,
+                      validator: (v) {
+                        final t = v?.trim() ?? '';
+                        if (t.length < 8) return 'Username minimal 8 karakter';
+                        if (!RegExp(r'^[a-zA-Z0-9_.]+$').hasMatch(t)) {
+                          return 'Username hanya boleh huruf, angka, titik, dan underscore';
+                        }
+                        return null;
+                      },
                     ),
 
                     _fieldLabel('Email'),
@@ -298,7 +325,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       style: GoogleFonts.poppins(fontSize: 15, color: _label),
                       decoration: _decoration(
                         'Enter your password',
-                        'Minimal password mengandung (min panjang 5 karakter dengan kombinasi angka)',
+                        'Minimal 6 karakter dan mengandung angka',
                         suffix: _eye(
                           _hidePass,
                           () => setState(() => _hidePass = !_hidePass),
@@ -306,7 +333,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       ),
                       validator: (v) {
                         final t = v ?? '';
-                        if (t.length < 5) return 'Password minimal 5 karakter';
+                        if (t.length < 6) return 'Password minimal 6 karakter';
                         if (!RegExp(r'\d').hasMatch(t)) {
                           return 'Password harus mengandung angka';
                         }
@@ -345,8 +372,10 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                               borderRadius: BorderRadius.circular(3),
                             ),
                             side: const BorderSide(color: _green, width: 1.5),
-                            onChanged: (v) =>
-                                setState(() => _agree = v ?? false),
+                            onChanged: (v) => setState(() {
+                              _agree = v ?? false;
+                              if (_agree) _agreeError = false;
+                            }),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -360,8 +389,14 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                         ),
                         const SizedBox(width: 6),
                         InkWell(
-                          onTap: () {
-                            // TODO: navigasi ke halaman Terms & Conditions
+                          onTap: () async {
+                            final accepted = await showTermsDialog(context);
+                            if (accepted == true && mounted) {
+                              setState(() {
+                                _agree = true;
+                                _agreeError = false;
+                              });
+                            }
                           },
                           child: Container(
                             padding: const EdgeInsets.only(bottom: 1),
@@ -410,14 +445,23 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                             color: _green,
                             border: Border.all(color: Colors.white, width: 2),
                           ),
-                          child: Text(
-                            'Sign Up',
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  'Sign Up',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -446,6 +490,46 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
 
                     const SizedBox(height: 18),
                     Center(child: _googleButton()),
+                    const SizedBox(height: 28),
+                    Center(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        children: [
+                          Text(
+                            'Already have an account?',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: _label,
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => const LoginPage(),
+                              ),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.only(bottom: 1),
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(color: _gold, width: 1.2),
+                                ),
+                              ),
+                              child: Text(
+                                'Login',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: _gold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),

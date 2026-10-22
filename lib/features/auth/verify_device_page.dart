@@ -1,5 +1,11 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/account_created_page.dart';
+import 'package:sekitaran/features/auth/shake_analyzer.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 class VerifyDevicePage extends StatefulWidget {
   const VerifyDevicePage({super.key});
@@ -16,17 +22,115 @@ class _VerifyDevicePageState extends State<VerifyDevicePage> {
   static const _grey = Color(0xFF7A7A7A);
   static const _spinner = Color(0xFF5BAA5F);
 
+  static const _maxAttempts = 3;
+  static const _lockSeconds = 30;
+  static const _windowSeconds = 8;
+
   bool _checking = false;
+  String? _error;
+  int _failedAttempts = 0;
+  DateTime? _lockedUntil;
+
+  StreamSubscription<UserAccelerometerEvent>? _sub;
+  Timer? _timeout;
+  final _samples = <ShakeSample>[];
+  final _clock = Stopwatch();
+
+  @override
+  void dispose() {
+    _stopListening();
+    super.dispose();
+  }
+
+  void _stopListening() {
+    _sub?.cancel();
+    _sub = null;
+    _timeout?.cancel();
+    _timeout = null;
+    _clock.stop();
+  }
 
   void _onVerifyTap() {
-    setState(() => _checking = true);
+    final until = _lockedUntil;
+    if (until != null && DateTime.now().isBefore(until)) {
+      final left = until.difference(DateTime.now()).inSeconds + 1;
+      setState(
+        () => _error = 'Terlalu banyak percobaan. Coba lagi dalam $left detik.',
+      );
+      return;
+    }
     _startShakeDetection();
   }
 
   void _startShakeDetection() {
-    // TODO: pasang sensor goyang (accelerometer) di tahap berikutnya.
-    // Saat goyangan terdeteksi -> lanjut ke halaman berikutnya.
-    // Jika gagal/timeout -> setState(() => _checking = false);
+    _samples.clear();
+    _clock
+      ..reset()
+      ..start();
+    setState(() {
+      _checking = true;
+      _error = null;
+    });
+    _sub =
+        userAccelerometerEventStream(
+          samplingPeriod: const Duration(milliseconds: 20),
+        ).listen(
+          (e) {
+            final mag = sqrt(e.x * e.x + e.y * e.y + e.z * e.z);
+            _samples.add(ShakeSample(_clock.elapsedMilliseconds, mag));
+            if (_samples.length % 5 == 0 &&
+                ShakeAnalyzer.countPeaks(_samples) >=
+                    ShakeAnalyzer.targetPeaks) {
+              _finish();
+            }
+          },
+          onError: (_) => _fail(
+            'Sensor gerak tidak tersedia di perangkat ini.',
+            countAttempt: false,
+          ),
+          cancelOnError: true,
+        );
+    _timeout = Timer(const Duration(seconds: _windowSeconds), _finish);
+  }
+
+  void _finish() {
+    if (!_checking) return;
+    final verdict = ShakeAnalyzer.analyze(List.of(_samples));
+    _stopListening();
+    switch (verdict) {
+      case ShakeVerdict.human:
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const AccountCreatedPage()),
+        );
+      case ShakeVerdict.tooFew:
+        _fail('Guncangan kurang terdeteksi. Goyangkan ponsel lebih kuat.');
+      case ShakeVerdict.tooShort:
+        _fail('Guncangan terlalu singkat. Goyangkan beberapa saat.');
+      case ShakeVerdict.tooRegular:
+        _fail('Pola guncangan terlalu seragam. Goyangkan secara alami.');
+    }
+  }
+
+  void _fail(String message, {bool countAttempt = true}) {
+    _stopListening();
+    if (!mounted) return;
+    var msg = message;
+    if (countAttempt) {
+      _failedAttempts++;
+      if (_failedAttempts >= _maxAttempts) {
+        _failedAttempts = 0;
+        _lockedUntil = DateTime.now().add(
+          const Duration(seconds: _lockSeconds),
+        );
+        msg =
+            'Terlalu banyak percobaan gagal. Coba lagi dalam $_lockSeconds detik.';
+      }
+    }
+    setState(() {
+      _checking = false;
+      _error = msg;
+    });
   }
 
   Widget _title() {
@@ -61,39 +165,39 @@ class _VerifyDevicePageState extends State<VerifyDevicePage> {
         const SizedBox(height: 14),
         FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text.rich(
-            softWrap: false,
-            maxLines: 1,
-            TextSpan(
-              style: GoogleFonts.poppins(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: _label,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                'Join Sekitaran and discover',
+                maxLines: 1,
+                softWrap: false,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: _label,
+                ),
               ),
-              children: [
-                const TextSpan(text: 'Join Sekitaran and discover '),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.baseline,
-                  baseline: TextBaseline.alphabetic,
-                  child: Container(
-                    padding: const EdgeInsets.only(bottom: 3),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: _green, width: 1.5),
-                      ),
-                    ),
-                    child: Text(
-                      "what's around you.",
-                      style: GoogleFonts.poppins(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: _label,
-                      ),
-                    ),
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.only(bottom: 3),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: _green, width: 1.5)),
+                ),
+                child: Text(
+                  "what's around you.",
+                  maxLines: 1,
+                  softWrap: false,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: _label,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ],
@@ -222,6 +326,17 @@ class _VerifyDevicePageState extends State<VerifyDevicePage> {
                             ),
                           ),
                         ),
+                        if (_error != null) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 12.5,
+                              color: Colors.red.shade700,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 24),
                       ],
                     ),

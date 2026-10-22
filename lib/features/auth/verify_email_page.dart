@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/auth_service.dart';
 import 'package:sekitaran/features/auth/verify_device_page.dart';
 
 class VerifyEmailPage extends StatefulWidget {
-  const VerifyEmailPage({super.key});
+  const VerifyEmailPage({super.key, required this.email});
+
+  final String email;
 
   @override
   State<VerifyEmailPage> createState() => _VerifyEmailPageState();
@@ -22,27 +27,93 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   final _controller = TextEditingController();
   final _focus = FocusNode();
   bool _showError = false;
+  String? _errorText;
+  bool _loading = false;
+  bool _resending = false;
+  int _cooldown = 0;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _focus.addListener(() => setState(() {}));
+    _startCooldown(); // email baru saja dikirim saat signUp
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller.dispose();
     _focus.dispose();
     super.dispose();
   }
 
-  void _submit() {
-    final complete = _controller.text.length == _length;
-    setState(() => _showError = !complete);
-    if (complete) {
-      // TODO: verifikasi OTP di tahap backend
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const VerifyDevicePage()));
+  void _startCooldown([int seconds = 60]) {
+    _timer?.cancel();
+    _cooldown = seconds;
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() => _cooldown--);
+      if (_cooldown <= 0) t.cancel();
+    });
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _submit() async {
+    if (_loading) return;
+    if (_controller.text.length != _length) {
+      setState(() {
+        _errorText = null;
+        _showError = true;
+      });
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _showError = false;
+      _errorText = null;
+    });
+    try {
+      await AuthService.instance.verifySignupOtp(
+        email: widget.email,
+        token: _controller.text,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const VerifyDevicePage()),
+      );
+    } on AuthFailure catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _showError = true;
+        _errorText = e.message;
+      });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _resend() async {
+    if (_resending || _cooldown > 0) return;
+    setState(() => _resending = true);
+    try {
+      await AuthService.instance.resendSignupOtp(widget.email);
+      if (!mounted) return;
+      setState(() => _startCooldown());
+      _snack('Kode baru dikirim ke ${widget.email}');
+    } on AuthFailure catch (e) {
+      if (!mounted) return;
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _resending = false);
     }
   }
 
@@ -102,7 +173,10 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                   ],
                   showCursor: false,
                   enableInteractiveSelection: false,
-                  onChanged: (_) => setState(() => _showError = false),
+                  onChanged: (_) => setState(() {
+                    _showError = false;
+                    _errorText = null;
+                  }),
                 ),
               ),
             ),
@@ -157,44 +231,44 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                         const SizedBox(height: 14),
                         FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text.rich(
-                            softWrap: false,
-                            maxLines: 1,
-                            TextSpan(
-                              style: GoogleFonts.poppins(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                                color: _label,
-                              ),
-                              children: [
-                                const TextSpan(
-                                  text: 'Join Sekitaran and discover ',
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                'Join Sekitaran and discover',
+                                maxLines: 1,
+                                softWrap: false,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: _label,
                                 ),
-                                WidgetSpan(
-                                  alignment: PlaceholderAlignment.baseline,
-                                  baseline: TextBaseline.alphabetic,
-                                  child: Container(
-                                    padding: const EdgeInsets.only(bottom: 3),
-                                    decoration: const BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: _green,
-                                          width: 1.5,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      "what's around you.",
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w500,
-                                        color: _label,
-                                      ),
+                              ),
+                              const SizedBox(width: 5),
+                              Container(
+                                padding: const EdgeInsets.only(bottom: 3),
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: _green,
+                                      width: 1.5,
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
+                                child: Text(
+                                  "what's around you.",
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                    color: _label,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 28),
@@ -241,7 +315,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                           Padding(
                             padding: const EdgeInsets.only(top: 10),
                             child: Text(
-                              'Masukkan 6 digit kode verifikasi',
+                              _errorText ?? 'Masukkan 6 digit kode verifikasi',
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
                                 color: Colors.red.shade700,
@@ -261,11 +335,11 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                             ),
                             const SizedBox(width: 6),
                             InkWell(
-                              onTap: () {
-                                // TODO: kirim ulang kode di tahap backend
-                              },
+                              onTap: _cooldown > 0 ? null : _resend,
                               child: Text(
-                                'Resend.',
+                                _cooldown > 0
+                                    ? 'Resend in ${_cooldown}s'
+                                    : 'Resend.',
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -298,7 +372,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                           border: Border.all(color: Colors.white, width: 2),
                         ),
                         child: Text(
-                          'Submit',
+                          _loading ? 'Verifying...' : 'Submit',
                           style: GoogleFonts.poppins(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
