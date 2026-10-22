@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/store/add_store_page.dart'
     show AddStorePage, StoreCategory, ThousandsSeparatorFormatter;
+import 'package:sekitaran/features/store/store_repository.dart';
+import 'package:sekitaran/features/store/store_service.dart' show StoreFailure;
 
 String _idr(int n) {
   final s = n.toString();
@@ -16,10 +18,12 @@ String _idr(int n) {
 }
 
 class _ItemRow {
-  _ItemRow({String nameText = '', String priceText = ''})
+  _ItemRow({this.id, String nameText = '', String priceText = ''})
     : name = TextEditingController(text: nameText),
       price = TextEditingController(text: priceText);
 
+  /// null = baris baru yang belum ada di database.
+  final String? id;
   final TextEditingController name;
   final TextEditingController price;
 
@@ -81,38 +85,40 @@ class _StoreDraft {
   }
 }
 
-// TODO: ganti dengan data dari backend
-List<_StoreDraft> _sampleStores() => [
-  _StoreDraft(
-    id: 'sample-1',
-    nameText: 'FriZel Warung Makan',
-    category: StoreCategory.restaurant,
+StoreCategory? _categoryFrom(String? c) => switch (c) {
+  'restaurant' => StoreCategory.restaurant,
+  'grocery' => StoreCategory.grocery,
+  'money_changer' => StoreCategory.exchange,
+  _ => null,
+};
+
+String _plainNumber(num n) =>
+    n == n.truncate() ? n.truncate().toString() : n.toString();
+
+_StoreDraft _draftFrom(StoreRecord r) {
+  return _StoreDraft(
+    id: r.id,
+    nameText: r.name,
+    category: _categoryFrom(r.category)!,
     items: [
-      _ItemRow(nameText: 'Nasi Goreng', priceText: _idr(15000)),
-      _ItemRow(nameText: 'Ayam Bakar', priceText: _idr(22000)),
-      _ItemRow(nameText: 'Es Teh', priceText: _idr(5000)),
+      for (final i in r.items)
+        _ItemRow(
+          id: i.id,
+          nameText: i.name,
+          priceText: i.price == null ? '' : _idr(i.price!.round()),
+        ),
     ],
-  ),
-  _StoreDraft(
-    id: 'sample-2',
-    nameText: 'FriZel Toko Sembako',
-    category: StoreCategory.grocery,
-    items: [
-      _ItemRow(nameText: 'Beras 5 kg', priceText: _idr(68000)),
-      _ItemRow(nameText: 'Minyak Goreng 2 L', priceText: _idr(36000)),
-      _ItemRow(nameText: 'Gula Pasir 1 kg', priceText: _idr(17500)),
-    ],
-  ),
-  _StoreDraft(
-    id: 'sample-3',
-    nameText: 'FriZel Penukaran Uang',
-    category: StoreCategory.exchange,
     rates: [
-      _RateRow(code: 'USD', rate: '1', idr: _idr(15800), fee: _idr(2000)),
-      _RateRow(code: 'SGD', rate: '1', idr: _idr(12300)),
+      for (final x in r.rates)
+        _RateRow(
+          code: x.currencyCode,
+          rate: _plainNumber(x.foreignAmount),
+          idr: _idr(x.idrAmount.round()),
+          fee: x.serviceFeeIdr == null ? '' : _idr(x.serviceFeeIdr!.round()),
+        ),
     ],
-  ),
-];
+  );
+}
 
 class EditStorePage extends StatefulWidget {
   const EditStorePage({super.key});
@@ -132,7 +138,9 @@ class _EditStorePageState extends State<EditStorePage> {
   static const _maxEntries = 30;
 
   final _formKey = GlobalKey<FormState>();
-  late final List<_StoreDraft> _stores;
+  final List<_StoreDraft> _stores = [];
+  bool _loading = true;
+  String? _loadError;
   _StoreDraft? _current;
   double _syncTurns = 0; // tiap +1 = satu putaran penuh
   bool _saving = false;
@@ -140,8 +148,75 @@ class _EditStorePageState extends State<EditStorePage> {
   @override
   void initState() {
     super.initState();
-    _stores = _sampleStores();
-    _current = _stores.isEmpty ? null : _stores.first;
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final records = await StoreRepository.instance.fetchMyStores();
+      if (!mounted) return;
+      final drafts = [
+        for (final r in records)
+          if (_categoryFrom(r.category) != null) _draftFrom(r),
+      ];
+      final old = List<_StoreDraft>.of(_stores);
+      final keep = _current?.id;
+      setState(() {
+        _stores
+          ..clear()
+          ..addAll(drafts);
+        _current = drafts.isEmpty
+            ? null
+            : drafts.firstWhere(
+                (d) => d.id == keep,
+                orElse: () => drafts.first,
+              );
+        _loading = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final d in old) {
+          d.dispose();
+        }
+      });
+    } on StoreFailure catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        if (_stores.isEmpty) _loadError = e.message;
+      });
+      if (_stores.isNotEmpty) _snack(e.message);
+    }
+  }
+
+  /// Memuat ulang satu toko dari database (id item baru terisi, urutan rapi).
+  Future<bool> _refreshCurrent(_StoreDraft d) async {
+    try {
+      final rec = await StoreRepository.instance.fetchStore(d.id);
+      if (!mounted || rec == null || _categoryFrom(rec.category) == null) {
+        return false;
+      }
+      final idx = _stores.indexOf(d);
+      if (idx < 0) return false;
+      final fresh = _draftFrom(rec);
+      setState(() {
+        _stores[idx] = fresh;
+        if (_current == d) _current = fresh;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => d.dispose());
+      return true;
+    } on StoreFailure {
+      return false;
+    }
+  }
+
+  Future<void> _openAddStore() async {
+    final saved = await Navigator.of(context)
+        .push<bool>(MaterialPageRoute(builder: (_) => const AddStorePage()));
+    if (saved == true && mounted) _load();
   }
 
   @override
@@ -318,7 +393,7 @@ class _EditStorePageState extends State<EditStorePage> {
               : '"${d.items[i].name.text.trim()}"');
     final ok = await _confirm(
       title: 'Delete $label?',
-      message: 'This entry will be removed from your store.',
+      message: 'It will be removed from your store when you save your changes.',
       action: 'Delete',
     );
     if (!ok || !mounted) return;
@@ -335,24 +410,33 @@ class _EditStorePageState extends State<EditStorePage> {
 
   Future<void> _deleteStore() async {
     final d = _current;
-    if (d == null) return;
+    if (_saving || d == null) return;
     final ok = await _confirm(
       title: 'Delete this store?',
       message:
-          '"${_displayName(d)}" and all of its items and prices will be removed. This can\'t be undone.',
+          '"${_displayName(d)}" and all of its items, prices, and customer comments will be removed. This can\'t be undone.',
       action: 'Delete',
     );
     if (!ok || !mounted) return;
-    // TODO: hapus dari database (tahap backend)
-    setState(() {
-      final idx = _stores.indexOf(d);
-      _stores.removeAt(idx);
-      _current = _stores.isEmpty
-          ? null
-          : _stores[idx < _stores.length ? idx : _stores.length - 1];
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) => d.dispose());
-    _snack('Store deleted (frontend only)');
+    setState(() => _saving = true);
+    try {
+      await StoreRepository.instance.deleteStore(d.id);
+      if (!mounted) return;
+      setState(() {
+        final idx = _stores.indexOf(d);
+        _stores.removeAt(idx);
+        _current = _stores.isEmpty
+            ? null
+            : _stores[idx < _stores.length ? idx : _stores.length - 1];
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => d.dispose());
+      _snack('Store deleted');
+    } on StoreFailure catch (e) {
+      if (!mounted) return;
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _save() async {
@@ -363,6 +447,9 @@ class _EditStorePageState extends State<EditStorePage> {
       _snack('Please check the highlighted fields.');
       return;
     }
+
+    final items = <Map<String, dynamic>>[];
+    final rates = <Map<String, dynamic>>[];
     if (d.category == StoreCategory.exchange) {
       final seen = <String>{};
       for (final r in d.rates) {
@@ -371,14 +458,45 @@ class _EditStorePageState extends State<EditStorePage> {
           _snack('Currency $code is listed more than once.');
           return;
         }
+        final fee = _digits(r.fee.text);
+        rates.add({
+          'currency_code': code,
+          'foreign_amount': r.priceIn.text.trim(),
+          'idr_amount': _digits(r.priceRupiah.text),
+          'service_fee_idr': fee.isEmpty ? null : fee,
+        });
+      }
+    } else {
+      for (final e in d.items) {
+        items.add({
+          'id': e.id,
+          'name': e.name.text.trim(),
+          'price': _digits(e.price.text),
+        });
       }
     }
+
     setState(() => _saving = true);
-    // TODO: simpan ke database (tahap backend)
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() => _saving = false);
-    _snack('Changes saved (frontend only)');
+    try {
+      await StoreRepository.instance.saveStore(
+        storeId: d.id,
+        name: d.name.text.trim(),
+        items: items,
+        rates: rates,
+      );
+      final refreshed = await _refreshCurrent(d);
+      if (!mounted) return;
+      _snack(
+        refreshed
+            ? 'Changes saved'
+            : 'Changes saved. Reopen this page to see the latest data.',
+      );
+    } on StoreFailure catch (e) {
+      if (!mounted) return;
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   // ---------- Komponen dasar ----------
@@ -556,7 +674,9 @@ class _EditStorePageState extends State<EditStorePage> {
                 Flexible(
                   child: d == null
                       ? Text(
-                          '\u201CNo store\u201D',
+                          _loading
+                              ? '\u201CLoading...\u201D'
+                              : '\u201CNo store\u201D',
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -1038,17 +1158,49 @@ class _EditStorePageState extends State<EditStorePage> {
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(fontSize: 12.5, color: _grey),
           ),
-          _addButton(
-            'Add a store',
-            () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const AddStorePage())),
-          ),
+          _addButton('Add a store', _openAddStore),
         ],
       ),
     );
   }
 
   Widget _content() {
+    if (_loading && _stores.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2.5, color: _green),
+          ),
+        ),
+      );
+    }
+    if (_loadError != null && _stores.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 32),
+        child: Column(
+          children: [
+            Text(
+              _loadError!,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(fontSize: 13, color: _grey),
+            ),
+            TextButton(
+              onPressed: _load,
+              child: Text(
+                'Try again',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: _green,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     final d = _current;
     if (d == null) return _emptyState();
     return AnimatedSwitcher(
@@ -1083,8 +1235,7 @@ class _EditStorePageState extends State<EditStorePage> {
         RadialNavMenu(
           // Dashboard adalah route pertama (dibuka lewat pushAndRemoveUntil).
           onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
-          onAddStore: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const AddStorePage())),
+          onAddStore: _openAddStore,
           onEdit: () {}, // sudah berada di halaman ini
           // TODO: onProfile setelah halamannya ada.
         ),
