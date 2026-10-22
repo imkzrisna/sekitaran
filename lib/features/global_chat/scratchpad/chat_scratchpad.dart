@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:sekitaran/features/auth/persistence/user_profile_repository/supabase_user_profile_repository.dart';
-import 'package:sekitaran/features/global_chat/adapter/chat_gateway/supabase_chat_gateway.dart';
 import 'package:sekitaran/features/global_chat/adapter/session_manager/supabase_session_manager.dart';
 import 'package:sekitaran/features/global_chat/chat_service.dart';
 import 'package:sekitaran/features/global_chat/vo/auth_session.dart';
 import 'package:sekitaran/features/global_chat/entity/message.dart';
+import 'package:uuid/uuid.dart';
 
 class ChatScratchpad extends StatefulWidget {
   const ChatScratchpad({super.key});
@@ -27,7 +24,16 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
       password: "password",
     );
 
-    await _service.sendChatAsync(Message("How are you?", "anotherUser"));
+    final id = Uuid().v4();
+    await _service.sendChatAsync(
+      Message("How are you?", "anotherUser").withId(id),
+    );
+
+    final status = await _service.editMessageAsync(id, "I'm doing great!");
+
+    await _service.deleteChatById(id);
+
+    print("update status: " + status.toString());
   }
 
   @override

@@ -27,8 +27,12 @@ class SupabaseChatGateway implements ChatGatewayInterface {
     }
 
     await client.from("message").insert({
+      // a bit risky but it's more testable. Hopefully there's no data inconsistency bug occuring
+      "id": message.id,
       "message": message.message,
       "username": message.username,
+      "created_at": DateTime.now().toString(),
+      "user_id": user.userId,
     });
   }
 
@@ -77,20 +81,38 @@ class SupabaseChatGateway implements ChatGatewayInterface {
   }
 
   @override
-  Future<void> deleteMessageAsync(String chatUuid) {
-    // TODO: implement deleteMessageAsync
-    throw UnimplementedError();
+  Future<void> deleteMessageAsync(String chatUuid) async {
+    try {
+      await client.from("message").delete().eq("id", chatUuid);
+    } catch (e) {
+      print("failed to delete messages!: " + e.toString());
+    }
   }
 
   @override
-  Future<Message?> getMessageByIdAsync(String chatUuid) {
-    // TODO: implement getMessageById
-    throw UnimplementedError();
+  Future<Message?> getMessageByIdAsync(String chatUuid) async {
+    final queriedMessage = await client
+        .from("message")
+        .select("*")
+        .eq("id", chatUuid);
+
+    final row = (queriedMessage as List).firstOrNull;
+
+    if (row == null) {
+      return null;
+    }
+
+    return Message(row["message"], row["username"]);
   }
 
   @override
-  Future<void> editMessageByIdAsync(String chatUuid, Message newMessage) {
-    // TODO: implement editMessageByIdAsync
-    throw UnimplementedError();
+  Future<void> editMessageByIdAsync(String chatUuid, Message newMessage) async {
+    await client
+        .from("message")
+        .update({
+          "message": newMessage.message,
+          "updated_at": DateTime.now().toString(),
+        })
+        .eq("id", chatUuid);
   }
 }

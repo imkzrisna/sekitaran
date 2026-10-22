@@ -96,7 +96,7 @@ class ChatService {
 
     await _gateway.editMessageByIdAsync(
       id,
-      Message(newMessage, currentUser!.username).withId(id),
+      Message(newMessage, currentUser.username).withId(id),
     );
 
     return EditMessageStatus.success;
