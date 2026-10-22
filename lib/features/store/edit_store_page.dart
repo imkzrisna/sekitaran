@@ -1200,6 +1200,7 @@ class _EditStorePageState extends State<EditStorePage> {
       children: [
         _buildScaffold(context),
         RadialNavMenu(
+          current: RadialNavItem.edit,
           // Dashboard adalah route pertama (dibuka lewat pushAndRemoveUntil).
           onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
           onAddStore: _openAddStore,

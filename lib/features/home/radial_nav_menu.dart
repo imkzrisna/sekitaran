@@ -2,6 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+/// Menu yang bisa ditandai sebagai halaman aktif.
+enum RadialNavItem { profile, home, add, edit }
+
 /// Tombol menu melingkar di pojok kanan bawah. Letakkan sebagai anak dari
 /// Stack layar penuh (StackFit.expand) di atas konten halaman.
 class RadialNavMenu extends StatefulWidget {
@@ -11,12 +14,16 @@ class RadialNavMenu extends StatefulWidget {
     this.onHome,
     this.onAddStore,
     this.onEdit,
+    this.current,
   });
 
   final VoidCallback? onProfile;
   final VoidCallback? onHome;
   final VoidCallback? onAddStore;
   final VoidCallback? onEdit;
+
+  /// Menu yang sedang aktif (diberi lingkaran putih). null = tidak ada.
+  final RadialNavItem? current;
 
   @override
   State<RadialNavMenu> createState() => _RadialNavMenuState();
@@ -61,26 +68,38 @@ class _RadialNavMenuState extends State<RadialNavMenu>
 
   Widget _ring() {
     final items =
-        <({IconData icon, String tooltip, double angle, VoidCallback? onTap})>[
+        <
+          ({
+            RadialNavItem item,
+            IconData icon,
+            String tooltip,
+            double angle,
+            VoidCallback? onTap,
+          })
+        >[
           (
+            item: RadialNavItem.profile,
             icon: Icons.person_outline,
             tooltip: 'Profile',
             angle: 199,
             onTap: widget.onProfile,
           ),
           (
+            item: RadialNavItem.home,
             icon: Icons.home_outlined,
             tooltip: 'Home',
             angle: 163,
             onTap: widget.onHome,
           ),
           (
+            item: RadialNavItem.add,
             icon: Icons.add_circle_outline,
             tooltip: 'Add item',
             angle: 126,
             onTap: widget.onAddStore,
           ),
           (
+            item: RadialNavItem.edit,
             icon: Icons.edit_outlined,
             tooltip: 'Edit',
             angle: 90,
@@ -120,7 +139,27 @@ class _RadialNavMenuState extends State<RadialNavMenu>
                     _close();
                     it.onTap?.call();
                   },
-                  child: Icon(it.icon, color: Colors.white, size: 28),
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 44,
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: widget.current == it.item
+                            ? Colors.white
+                            : Colors.transparent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        it.icon,
+                        color: widget.current == it.item
+                            ? _green
+                            : Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -1093,6 +1093,7 @@ class _AddStorePageState extends State<AddStorePage> {
       children: [
         _buildScaffold(context),
         RadialNavMenu(
+          current: RadialNavItem.add,
           // Dashboard adalah route pertama (dibuka lewat pushAndRemoveUntil).
           onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
           onAddStore: () {}, // sudah berada di halaman ini
