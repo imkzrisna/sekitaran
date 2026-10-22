@@ -170,6 +170,18 @@ class BusinessService {
     });
   }
 
+  Future<void> markCommentRead(String commentId) {
+    return _guard(() async {
+      final res = await _client.rpc(
+        'mark_comment_read',
+        params: {'p_comment_id': commentId},
+      );
+      if (res != true) {
+        throw const ServiceFailure('Komentar tidak ditemukan.');
+      }
+    });
+  }
+
   Future<void> markAllCommentsRead(String businessId) {
     return _guard(() async {
       await _client.rpc(

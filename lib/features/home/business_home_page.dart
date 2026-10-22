@@ -620,6 +620,87 @@ class _BusinessHomePageState extends State<BusinessHomePage>
     );
   }
 
+  void _applyRead(String id, bool read) {
+    setState(() {
+      _comments = [
+        for (final x in _comments)
+          x.id == id
+              ? StoreComment(
+                  id: x.id,
+                  authorMasked: x.authorMasked,
+                  body: x.body,
+                  createdAt: x.createdAt,
+                  isRead: read,
+                )
+              : x,
+      ];
+      final o = _overview;
+      if (o != null) {
+        _overview = StoreOverview(
+          listedItems: o.listedItems,
+          commentCount: o.commentCount,
+          unreadCount: math.max(0, o.unreadCount + (read ? -1 : 1)),
+        );
+      }
+    });
+  }
+
+  Future<void> _markOneRead(StoreComment c) async {
+    final b = _selected;
+    if (b == null) return;
+    _applyRead(c.id, true); // langsung hilang dari daftar
+    try {
+      await _service.markCommentRead(c.id);
+    } on ServiceFailure catch (e) {
+      if (!mounted) return;
+      if (_selected?.id == b.id) _applyRead(c.id, false); // kembalikan
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Widget _swipeToRead(StoreComment c) {
+    return Dismissible(
+      key: ValueKey('swipe-${c.id}'),
+      direction: _dismissing
+          ? DismissDirection.none
+          : DismissDirection.endToStart,
+      dismissThresholds: const {DismissDirection.endToStart: 0.35},
+      onDismissed: (_) => _markOneRead(c),
+      background: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 24),
+          decoration: BoxDecoration(
+            color: _green,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Read',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.done_all, color: Colors.white, size: 22),
+            ],
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: _commentCard(c),
+      ),
+    );
+  }
+
   Widget _commentsSection() {
     if (_loading || _selected == null) return const SizedBox.shrink();
     if (_detailLoading && _comments.isEmpty) return _spinner();
@@ -649,7 +730,7 @@ class _BusinessHomePageState extends State<BusinessHomePage>
             key: ValueKey(unread[i].id),
             dismissed: _dismissing,
             delay: _kStagger * i,
-            child: _commentCard(unread[i]),
+            child: _swipeToRead(unread[i]),
           ),
       ],
     );
@@ -937,10 +1018,7 @@ class _FadeOutTileState extends State<_FadeOutTile>
             begin: Offset.zero,
             end: const Offset(0.35, 0),
           ).animate(_t),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: widget.child,
-          ),
+          child: widget.child,
         ),
       ),
     );
