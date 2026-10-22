@@ -5,6 +5,7 @@ import 'package:sekitaran/features/global_chat/adapter/session_manager/fake_sess
 import 'package:sekitaran/features/global_chat/chat_service.dart';
 import 'package:sekitaran/features/global_chat/entity/message.dart';
 import 'package:sekitaran/features/global_chat/status/delete_status.dart';
+import 'package:sekitaran/features/global_chat/status/edit_message_status.dart';
 import 'package:uuid/uuid.dart';
 
 void main() {
@@ -102,7 +103,7 @@ void main() {
 
         final result = await service.deleteChatById(id);
 
-        expect(result["status"], DeleteStatus.success);
+        expect(result, DeleteStatus.success);
         expect(gateway.getAll(), []);
       },
     );
@@ -116,7 +117,7 @@ void main() {
 
       final result = await service.deleteChatById(id);
 
-      expect(result["status"], isNot(DeleteStatus.success));
+      expect(result, isNot(DeleteStatus.success));
       expect(gateway.getAll(), isNotEmpty);
     });
 
@@ -125,8 +126,6 @@ void main() {
 
       final message = Message("hello", "user1").withId(id);
       await service.sendChatAsync(message);
-
-      print("message id in test: $message");
 
       await session.signOutAsync();
 
@@ -138,28 +137,67 @@ void main() {
 
       final result = await service.deleteChatById(id);
 
-      expect(result["status"], isNot(DeleteStatus.userIsNotAuthenticated));
-      expect(result["status"], isNot(DeleteStatus.success));
-      expect(result["status"], DeleteStatus.userDoesNotOwnTheMessage);
+      expect(result, isNot(DeleteStatus.userIsNotAuthenticated));
+      expect(result, isNot(DeleteStatus.success));
+      expect(result, DeleteStatus.userDoesNotOwnTheMessage);
       expect(gateway.getAll(), isNotEmpty);
     });
 
-    test(
-      "when a user edits a chat, the chat should be different from the older one",
-      () async {},
-      skip: true,
-    );
+    test("when a user edits a chat, the chat should be different from the older one", () async {
+      final id = Uuid().v4();
 
-    test(
-      "when an unauthenticated user tries to edit a chat, should not edit a chat",
-      () async {},
-      skip: true,
-    );
+      final message = Message("hello there", "user1").withId(id);
 
-    test(
-      "when a user tries to edit chat that is not owned by them, should not edit a chat",
-      () async {},
-      skip: true,
-    );
+      await service.sendChatAsync(message);
+
+      await service.editMessageAsync(id, "hello there!");
+
+      final newMessage = await gateway.getMessageByIdAsync(id);
+
+      expect(newMessage!.message, "hello there!");
+    });
+
+    test("when an unauthenticated user tries to edit a chat, should not edit a chat", () async {
+      final id = Uuid().v4();
+      final message = Message("Hello there", "user1").withId(id);
+
+      await service.sendChatAsync(message);
+
+      await session.signOutAsync();
+
+      final status = await service.editMessageAsync(id, "hello there!");
+
+      final newMessage = await gateway.getMessageByIdAsync(id);
+
+      expect(newMessage, isNotNull);
+      expect(status, EditMessageStatus.notAuthorized);
+      expect(newMessage!.message, "Hello there");
+    });
+
+    test("when a user tries to edit chat that is not owned by them, should not edit a chat", () async {
+      final id = Uuid().v4();
+      final message = Message("Hello there!", "user1").withId(id);
+
+      await service.sendChatAsync(message);
+
+      await session.signOutAsync();
+
+      await session.signInWithPasswordAsync(
+        email: "email2@gmail.com",
+        password: "password",
+        username: "user2",
+      );
+
+      final status = await service.editMessageAsync(
+        id,
+        "I don't own this message",
+      );
+
+      final newMessage = await gateway.getMessageByIdAsync(id);
+
+      expect(newMessage, isNotNull);
+      expect(status, EditMessageStatus.userDoesNotOwnTheMessage);
+      expect(newMessage!.message, "Hello there!");
+    });
   });
 }

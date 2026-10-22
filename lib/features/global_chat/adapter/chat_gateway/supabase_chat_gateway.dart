@@ -19,7 +19,7 @@ class SupabaseChatGateway implements ChatGatewayInterface {
   }
 
   @override
-  Future<void> sendMessage(Message message) async {
+  Future<void> sendMessageAsync(Message message) async {
     final user = await _repo.getByUsernameAsync(message.username);
 
     if (user == null) {
@@ -83,8 +83,14 @@ class SupabaseChatGateway implements ChatGatewayInterface {
   }
 
   @override
-  Future<Message?> getMessageById(String chatUuid) {
+  Future<Message?> getMessageByIdAsync(String chatUuid) {
     // TODO: implement getMessageById
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> editMessageByIdAsync(String chatUuid, Message newMessage) {
+    // TODO: implement editMessageByIdAsync
     throw UnimplementedError();
   }
 }
