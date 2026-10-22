@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Menu yang bisa ditandai sebagai halaman aktif.
 enum RadialNavItem { profile, home, add, edit }
@@ -40,11 +41,22 @@ class _RadialNavMenuState extends State<RadialNavMenu>
 
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 250),
+    duration: const Duration(milliseconds: 320),
+    reverseDuration: const Duration(milliseconds: 220),
   );
   late final Animation<double> _anim = CurvedAnimation(
     parent: _ctrl,
     curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
+
+  // Ikon muncul bergantian dari bawah ke atas dengan sedikit efek memantul.
+  late final List<Animation<double>> _iconAnims = List.generate(
+    4,
+    (i) => CurvedAnimation(
+      parent: _ctrl,
+      curve: Interval(0.2 + i * 0.12, 1.0, curve: Curves.easeOutBack),
+    ),
   );
 
   bool _open = false;
@@ -56,6 +68,7 @@ class _RadialNavMenuState extends State<RadialNavMenu>
   }
 
   void _toggle() {
+    HapticFeedback.selectionClick();
     setState(() => _open = !_open);
     _open ? _ctrl.forward() : _ctrl.reverse();
   }
@@ -125,45 +138,80 @@ class _RadialNavMenuState extends State<RadialNavMenu>
               ),
             ),
           ),
-          for (final it in items)
+          for (var i = 0; i < items.length; i++)
             Positioned(
-              left: _ringOuter + r * math.cos(it.angle * math.pi / 180) - 24,
-              top: _ringOuter - r * math.sin(it.angle * math.pi / 180) - 24,
+              left:
+                  _ringOuter +
+                  r * math.cos(items[i].angle * math.pi / 180) -
+                  24,
+              top:
+                  _ringOuter -
+                  r * math.sin(items[i].angle * math.pi / 180) -
+                  24,
               width: 48,
               height: 48,
-              child: Tooltip(
-                message: it.tooltip,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    _close();
-                    it.onTap?.call();
-                  },
-                  child: Center(
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: widget.current == it.item
-                            ? Colors.white
-                            : Colors.transparent,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        it.icon,
-                        color: widget.current == it.item
-                            ? _green
-                            : Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                  ),
-                ),
+              child: ScaleTransition(
+                scale: _iconAnims[i],
+                child: _ringIcon(items[i]),
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _ringIcon(
+    ({
+      RadialNavItem item,
+      IconData icon,
+      String tooltip,
+      double angle,
+      VoidCallback? onTap,
+    })
+    it,
+  ) {
+    final active = widget.current == it.item;
+    final disabled = it.onTap == null && !active;
+    return Tooltip(
+      message: it.tooltip,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          _close();
+          it.onTap?.call();
+        },
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: active ? Colors.white : Colors.transparent,
+              shape: BoxShape.circle,
+              boxShadow: active
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x40000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ]
+                  : const [],
+            ),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: disabled ? 0.45 : 1,
+              child: Icon(
+                it.icon,
+                color: active ? _green : Colors.white,
+                size: 28,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -182,13 +230,20 @@ class _RadialNavMenuState extends State<RadialNavMenu>
         return Stack(
           clipBehavior: Clip.none,
           children: [
-            if (_open)
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _toggle,
+            // Latar redup: memudar masuk/keluar, ketuk untuk menutup.
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: !_open,
+                child: FadeTransition(
+                  opacity: _anim,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _toggle,
+                    child: const ColoredBox(color: Color(0x33000000)),
+                  ),
                 ),
               ),
+            ),
             Positioned(
               left: cx - _ringOuter,
               top: cy - _ringOuter,
@@ -208,9 +263,20 @@ class _RadialNavMenuState extends State<RadialNavMenu>
                   decoration: const BoxDecoration(
                     color: _green,
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x4D000000),
+                        blurRadius: 14,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
                   ),
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
+                    duration: const Duration(milliseconds: 250),
+                    transitionBuilder: (child, anim) => RotationTransition(
+                      turns: Tween<double>(begin: 0.75, end: 1).animate(anim),
+                      child: FadeTransition(opacity: anim, child: child),
+                    ),
                     child: Icon(
                       _open ? Icons.close : Icons.widgets_outlined,
                       key: ValueKey(_open),
@@ -246,7 +312,18 @@ class _RingPainter extends CustomPainter {
       ..fillType = PathFillType.evenOdd
       ..addOval(Rect.fromCircle(center: c, radius: outer))
       ..addOval(Rect.fromCircle(center: c, radius: inner));
+
+    // Bayangan lembut agar cincin terangkat dari konten di belakangnya.
+    canvas.drawShadow(path, Colors.black, 10, true);
     canvas.drawPath(path, Paint()..color = color);
+
+    // Garis tepi tipis sebagai highlight.
+    final edge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = Colors.white.withValues(alpha: 0.14);
+    canvas.drawCircle(c, outer - 0.5, edge);
+    canvas.drawCircle(c, inner + 0.5, edge);
   }
 
   @override
