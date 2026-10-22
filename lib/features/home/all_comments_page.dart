@@ -350,7 +350,11 @@ class _AllCommentsPageState extends State<AllCommentsPage> {
           ? ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 28),
-              children: [_message('Belum ada komentar untuk toko ini.')],
+              children: [
+                _message(
+                  'Belum ada komentar yang dibaca.\nGeser komentar di dashboard ke kiri untuk memindahkannya ke sini.',
+                ),
+              ],
             )
           : ListView.builder(
               controller: _scroll,

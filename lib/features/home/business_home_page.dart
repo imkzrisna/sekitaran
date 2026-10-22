@@ -454,13 +454,17 @@ class _BusinessHomePageState extends State<BusinessHomePage>
     );
   }
 
+  int? get _readCount {
+    final o = _overview;
+    return o == null ? null : math.max(0, o.commentCount - o.unreadCount);
+  }
+
   void _openAllComments() {
     final b = _selected;
     if (b == null) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            AllCommentsPage(business: b, totalCount: _overview?.commentCount),
+        builder: (_) => AllCommentsPage(business: b, totalCount: _readCount),
       ),
     );
   }
