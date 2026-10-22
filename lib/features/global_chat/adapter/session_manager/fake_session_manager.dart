@@ -23,12 +23,15 @@ class FakeSessionManager implements SessionManagerInterface {
   Stream<AuthSession?> get sessionChanges => _streamController.stream;
 
   @override
-  Future<AuthSession> signInWithPassword({
+  Future<AuthSession> signInWithPasswordAsync({
     required String email,
     required String password,
+    String? username,
   }) async {
+    final user = await _repo.getByUsernameAsync(username ?? "");
+
     final session = AuthSession(
-      userId: Uuid().toString(),
+      userId: user?.userId ?? Uuid().v4(),
       email: email,
       accessToken: 'fake-access-token',
       refreshToken: 'fake-refresh-token',
@@ -41,7 +44,7 @@ class FakeSessionManager implements SessionManagerInterface {
   }
 
   @override
-  Future<void> signUpWithPassword({
+  Future<void> signUpWithPasswordAsync({
     required String email,
     required String password,
     required String username,
@@ -50,7 +53,7 @@ class FakeSessionManager implements SessionManagerInterface {
   }
 
   @override
-  Future<void> signOut() async {
+  Future<void> signOutAsync() async {
     _currentSession = null;
     _streamController.add(null);
   }

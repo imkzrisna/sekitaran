@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:sekitaran/features/global_chat/adapter/chat_gateway/chat_gateway_interface.dart';
-import 'package:sekitaran/features/global_chat/vo/message.dart';
+import 'package:sekitaran/features/global_chat/entity/message.dart';
 
 class FakeChatGateway implements ChatGatewayInterface {
   final List<Message> _messages = <Message>[];
@@ -36,4 +36,14 @@ class FakeChatGateway implements ChatGatewayInterface {
   }
 
   Future<void> dispose() => _chatListController.close();
+
+  @override
+  Future<void> deleteMessageAsync(String chatUuid) async {
+    _messages.removeWhere((message) => message.id == chatUuid);
+  }
+
+  @override
+  Future<Message?> getMessageById(String chatUuid) async {
+    return _messages.where((message) => message.id == chatUuid).firstOrNull;
+  }
 }

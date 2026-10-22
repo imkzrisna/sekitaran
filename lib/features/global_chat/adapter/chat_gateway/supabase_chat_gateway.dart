@@ -1,6 +1,6 @@
 import 'package:sekitaran/features/auth/persistence/user_profile_repository/user_profile_repository_interface.dart';
 import 'package:sekitaran/features/global_chat/adapter/chat_gateway/chat_gateway_interface.dart';
-import 'package:sekitaran/features/global_chat/vo/message.dart';
+import 'package:sekitaran/features/global_chat/entity/message.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'dart:async';
@@ -74,5 +74,17 @@ class SupabaseChatGateway implements ChatGatewayInterface {
     } catch (e) {
       controller.addError(e);
     }
+  }
+
+  @override
+  Future<void> deleteMessageAsync(String chatUuid) {
+    // TODO: implement deleteMessageAsync
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Message?> getMessageById(String chatUuid) {
+    // TODO: implement getMessageById
+    throw UnimplementedError();
   }
 }

@@ -4,16 +4,16 @@ abstract interface class SessionManagerInterface {
   AuthSession? get currentSession;
   Stream<AuthSession?> get sessionChanges;
 
-  Future<void> signUpWithPassword({
+  Future<void> signUpWithPasswordAsync({
     required String email,
     required String password,
     required String username,
   });
 
-  Future<AuthSession> signInWithPassword({
+  Future<AuthSession> signInWithPasswordAsync({
     required String email,
     required String password,
   });
 
-  Future<void> signOut();
+  Future<void> signOutAsync();
 }

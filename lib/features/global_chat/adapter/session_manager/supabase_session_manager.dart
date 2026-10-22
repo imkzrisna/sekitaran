@@ -21,7 +21,7 @@ class SupabaseSessionManager implements SessionManagerInterface {
   Stream<AuthSession?> get sessionChanges => _sessionController.stream;
 
   @override
-  Future<AuthSession> signInWithPassword({
+  Future<AuthSession> signInWithPasswordAsync({
     required String email,
     required String password,
   }) async {
@@ -45,14 +45,14 @@ class SupabaseSessionManager implements SessionManagerInterface {
   }
 
   @override
-  Future<void> signOut() async {
+  Future<void> signOutAsync() async {
     await client.auth.signOut();
     _currentSession = null;
     _sessionController.add(null);
   }
 
   @override
-  Future<void> signUpWithPassword({
+  Future<void> signUpWithPasswordAsync({
     required String email,
     required String password,
     required String username,

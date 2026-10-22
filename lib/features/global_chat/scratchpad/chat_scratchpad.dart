@@ -6,7 +6,7 @@ import 'package:sekitaran/features/global_chat/adapter/chat_gateway/supabase_cha
 import 'package:sekitaran/features/global_chat/adapter/session_manager/supabase_session_manager.dart';
 import 'package:sekitaran/features/global_chat/chat_service.dart';
 import 'package:sekitaran/features/global_chat/vo/auth_session.dart';
-import 'package:sekitaran/features/global_chat/vo/message.dart';
+import 'package:sekitaran/features/global_chat/entity/message.dart';
 
 class ChatScratchpad extends StatefulWidget {
   const ChatScratchpad({super.key});
@@ -22,12 +22,12 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
   late final Future<void> _initAsyncFuture;
 
   Future<void> _initAsync() async {
-    await _session.signInWithPassword(
+    await _session.signInWithPasswordAsync(
       email: "example@gmail.com",
       password: "password",
     );
 
-    await _service.sendChat(Message("How are you?", "anotherUser"));
+    await _service.sendChatAsync(Message("How are you?", "anotherUser"));
   }
 
   @override
@@ -67,6 +67,7 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
             builder: (context, sessionSnapshot) {
               final session = sessionSnapshot.data;
 
+              // mengecek apakah user sudah login
               if (session == null) {
                 return const Center(child: CircularProgressIndicator());
               }
@@ -81,13 +82,20 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
                       child: Text('Error: ${messageSnapshot.error}'),
                     );
                   }
+
+                  // menampilkan loading bila chat belum ke load
                   if (!messageSnapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
+
                   final messages = messageSnapshot.data!;
+
+                  // belum ada yang ngechat
                   if (messages.isEmpty) {
                     return const Center(child: Text('No messages yet'));
                   }
+
+                  // penampilan pesan
                   return ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: messages.length,
