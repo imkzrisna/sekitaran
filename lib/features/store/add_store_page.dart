@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/profile/profile_page.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
@@ -1094,12 +1095,14 @@ class _AddStorePageState extends State<AddStorePage> {
         _buildScaffold(context),
         RadialNavMenu(
           current: RadialNavItem.add,
+          onProfile: () =>
+              Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const ProfilePage())),
           // Dashboard adalah route pertama (dibuka lewat pushAndRemoveUntil).
           onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
           onAddStore: () {}, // sudah berada di halaman ini
           onEdit: () => Navigator.of(context)
               .push(MaterialPageRoute(builder: (_) => const EditStorePage())),
-          // TODO: onProfile dan onEdit setelah halamannya ada.
         ),
       ],
     );
@@ -1122,21 +1125,7 @@ class _AddStorePageState extends State<AddStorePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerLeft,
-                      constraints: const BoxConstraints(
-                        minWidth: 40,
-                        minHeight: 40,
-                      ),
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new,
-                        size: 20,
-                        color: _green,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 56),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Column(

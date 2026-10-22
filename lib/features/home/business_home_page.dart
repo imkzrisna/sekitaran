@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/profile/profile_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/home/all_comments_page.dart';
 import 'package:sekitaran/features/home/business_service.dart';
@@ -770,7 +771,9 @@ class _BusinessHomePageState extends State<BusinessHomePage> {
         Scaffold(backgroundColor: _bg, body: _content()),
         RadialNavMenu(
           current: RadialNavItem.home,
-          // TODO: onProfile setelah halamannya ada.
+          onProfile: () =>
+              Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const ProfilePage())),
           onAddStore: () =>
               Navigator.of(context)
                   .push(MaterialPageRoute(builder: (_) => const AddStorePage()))
