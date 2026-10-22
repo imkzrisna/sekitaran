@@ -16,8 +16,6 @@ class ChatScratchpad extends StatefulWidget {
 }
 
 class _ChatScratchpadState extends State<ChatScratchpad> {
-  late final SupabaseUserProfileRepository _userRepo;
-  late final SupabaseChatGateway _gateway;
   late final ChatService _service;
   late final SupabaseSessionManager _session;
 
@@ -28,23 +26,21 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
       email: "example@gmail.com",
       password: "password",
     );
-    await _service.sendChat(Message("Hello again", "anotherUser"));
+
+    await _service.sendChat(Message("How are you?", "anotherUser"));
   }
 
   @override
   void initState() {
     super.initState();
-    _userRepo = SupabaseUserProfileRepository();
     _session = SupabaseSessionManager();
-    _gateway = SupabaseChatGateway(_userRepo);
-    _service = ChatService(_gateway, _session);
+    _service = ChatService.createSupabaseImplementation(_session);
 
     // Fire-and-forget sign in - StreamBuilder will rebuild when session is available
     // _session.signInWithPassword(
     //   email: dotenv.env["INTEGRATION_TEST_EMAIL"]!,
     //   password: dotenv.env["INTEGRATION_TEST_PASSWORD"]!,
     // );
-
     _initAsyncFuture = _initAsync();
   }
 
@@ -61,6 +57,10 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
       body: FutureBuilder(
         future: _initAsyncFuture,
         builder: (context, snapshot) {
+          if (snapshot.error != null) {
+            print("an errro occured: " + snapshot.error.toString());
+          }
+
           return StreamBuilder<AuthSession?>(
             stream: _session.sessionChanges,
             initialData: _session.currentSession,
