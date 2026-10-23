@@ -274,13 +274,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        IconButton(
-          onPressed: () => Navigator.of(context).maybePop(),
-          padding: EdgeInsets.zero,
-          alignment: Alignment.centerLeft,
-          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: _green),
-        ),
+        const SizedBox(height: 20),
         const SizedBox(height: 28),
         _title(),
         const SizedBox(height: 14),
@@ -529,61 +523,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _action(
-    IconData icon,
-    String text,
-    VoidCallback onTap, {
-    bool last = false,
-  }) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: _line(
-        last: last,
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: _green),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                text,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: _ink,
-                ),
-              ),
-            ),
-            const Icon(Icons.chevron_right, size: 22, color: _grey),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _actions() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Column(
-        children: [
-          _action(
-            Icons.edit_outlined,
-            'Manage my stores',
-            () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const EditStorePage())),
-          ),
-          _action(
-            Icons.add_circle_outline,
-            'Add a new store',
-            () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const AddStorePage())),
-            last: true,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _quote(String label, String text) {
     return Padding(
       padding: const EdgeInsets.only(top: 18),
@@ -712,18 +651,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           ],
                         ),
                       ),
+
                       _Reveal(
                         index: 4,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _heading('Quick Actions', Icons.bolt_outlined),
-                            _actions(),
-                          ],
-                        ),
-                      ),
-                      _Reveal(
-                        index: 5,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -740,7 +670,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ],
                         ),
                       ),
-                      _Reveal(index: 6, child: _logoutButton()),
+                      _Reveal(index: 5, child: _logoutButton()),
                     ],
                   ),
                 ),
