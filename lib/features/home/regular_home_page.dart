@@ -37,7 +37,6 @@ class _RegularHomePageState extends State<RegularHomePage>
   String? _locError;
   List<Shop> _shops = const [];
   ShopCategory? _filter; // null = semua kategori
-  double _syncTurns = 0;
   static const _radiusMeters = 5000.0; // radius maksimal 5 km
   String? _shopsError;
 
@@ -241,26 +240,6 @@ class _RegularHomePageState extends State<RegularHomePage>
           Icon(icon, color: _green, size: 22),
           if (trailing != null) ...[const Spacer(), trailing],
         ],
-      ),
-    );
-  }
-
-  Widget _refreshButton() {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        setState(() => _syncTurns += 1);
-        _loadShops();
-        _locate();
-      },
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: AnimatedRotation(
-          turns: _syncTurns,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOutCubic,
-          child: const Icon(Icons.sync, color: _green, size: 22),
-        ),
       ),
     );
   }
@@ -539,7 +518,6 @@ class _RegularHomePageState extends State<RegularHomePage>
                       _heading(
                         'My Location',
                         Icons.my_location,
-                        trailing: _refreshButton(),
                       ),
                       const SizedBox(height: 12),
                       _mapBox(),
