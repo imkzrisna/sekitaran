@@ -4,24 +4,100 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// Menu yang bisa ditandai sebagai halaman aktif.
-enum RadialNavItem { profile, home, add, edit }
+/// profile & home dipakai kedua peran, add & edit khusus Business Owner,
+/// explore & currency khusus Regular User.
+enum RadialNavItem { profile, home, add, edit, explore, currency }
+
+/// Satu ikon di dalam cincin.
+class RadialNavEntry {
+  const RadialNavEntry({
+    required this.item,
+    required this.icon,
+    required this.tooltip,
+    this.onTap,
+  });
+
+  final RadialNavItem item;
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+}
 
 /// Tombol menu melingkar di pojok kanan bawah. Letakkan sebagai anak dari
 /// Stack layar penuh (StackFit.expand) di atas konten halaman.
 class RadialNavMenu extends StatefulWidget {
-  const RadialNavMenu({
+  /// Menu Business Owner: Profile, Home, Add item, Edit.
+  RadialNavMenu({
     super.key,
-    this.onProfile,
-    this.onHome,
-    this.onAddStore,
-    this.onEdit,
+    VoidCallback? onProfile,
+    VoidCallback? onHome,
+    VoidCallback? onAddStore,
+    VoidCallback? onEdit,
     this.current,
-  });
+  }) : entries = [
+         RadialNavEntry(
+           item: RadialNavItem.profile,
+           icon: Icons.person_outline,
+           tooltip: 'Profile',
+           onTap: onProfile,
+         ),
+         RadialNavEntry(
+           item: RadialNavItem.home,
+           icon: Icons.home_outlined,
+           tooltip: 'Home',
+           onTap: onHome,
+         ),
+         RadialNavEntry(
+           item: RadialNavItem.add,
+           icon: Icons.add_circle_outline,
+           tooltip: 'Add item',
+           onTap: onAddStore,
+         ),
+         RadialNavEntry(
+           item: RadialNavItem.edit,
+           icon: Icons.edit_outlined,
+           tooltip: 'Edit',
+           onTap: onEdit,
+         ),
+       ];
 
-  final VoidCallback? onProfile;
-  final VoidCallback? onHome;
-  final VoidCallback? onAddStore;
-  final VoidCallback? onEdit;
+  /// Menu Regular User: Profile, Home, Explore, Currency.
+  RadialNavMenu.regular({
+    super.key,
+    VoidCallback? onProfile,
+    VoidCallback? onHome,
+    VoidCallback? onExplore,
+    VoidCallback? onCurrency,
+    this.current,
+  }) : entries = [
+         RadialNavEntry(
+           item: RadialNavItem.profile,
+           icon: Icons.person_outline,
+           tooltip: 'Profile',
+           onTap: onProfile,
+         ),
+         RadialNavEntry(
+           item: RadialNavItem.home,
+           icon: Icons.home_outlined,
+           tooltip: 'Home',
+           onTap: onHome,
+         ),
+         RadialNavEntry(
+           item: RadialNavItem.explore,
+           icon: Icons.map_outlined,
+           tooltip: 'Explore',
+           onTap: onExplore,
+         ),
+         RadialNavEntry(
+           item: RadialNavItem.currency,
+           icon: Icons.currency_exchange,
+           tooltip: 'Currency',
+           onTap: onCurrency,
+         ),
+       ];
+
+  /// Isi cincin, urut dari bawah ke atas (harus 4 item).
+  final List<RadialNavEntry> entries;
 
   /// Menu yang sedang aktif (diberi lingkaran putih). null = tidak ada.
   final RadialNavItem? current;
@@ -39,6 +115,9 @@ class _RadialNavMenuState extends State<RadialNavMenu>
   static const _ringOuter = 143.0;
   static const _ringInner = 90.0;
 
+  // Sudut (derajat) tiap ikon, dari bawah ke atas.
+  static const _angles = <double>[199, 163, 126, 90];
+
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 320),
@@ -52,7 +131,7 @@ class _RadialNavMenuState extends State<RadialNavMenu>
 
   // Ikon muncul bergantian dari bawah ke atas dengan sedikit efek memantul.
   late final List<Animation<double>> _iconAnims = List.generate(
-    4,
+    _angles.length,
     (i) => CurvedAnimation(
       parent: _ctrl,
       curve: Interval(0.2 + i * 0.12, 1.0, curve: Curves.easeOutBack),
@@ -60,6 +139,12 @@ class _RadialNavMenuState extends State<RadialNavMenu>
   );
 
   bool _open = false;
+
+  @override
+  void initState() {
+    super.initState();
+    assert(widget.entries.length == _angles.length);
+  }
 
   @override
   void dispose() {
@@ -80,45 +165,7 @@ class _RadialNavMenuState extends State<RadialNavMenu>
   }
 
   Widget _ring() {
-    final items =
-        <
-          ({
-            RadialNavItem item,
-            IconData icon,
-            String tooltip,
-            double angle,
-            VoidCallback? onTap,
-          })
-        >[
-          (
-            item: RadialNavItem.profile,
-            icon: Icons.person_outline,
-            tooltip: 'Profile',
-            angle: 199,
-            onTap: widget.onProfile,
-          ),
-          (
-            item: RadialNavItem.home,
-            icon: Icons.home_outlined,
-            tooltip: 'Home',
-            angle: 163,
-            onTap: widget.onHome,
-          ),
-          (
-            item: RadialNavItem.add,
-            icon: Icons.add_circle_outline,
-            tooltip: 'Add item',
-            angle: 126,
-            onTap: widget.onAddStore,
-          ),
-          (
-            item: RadialNavItem.edit,
-            icon: Icons.edit_outlined,
-            tooltip: 'Edit',
-            angle: 90,
-            onTap: widget.onEdit,
-          ),
-        ];
+    final items = widget.entries;
     const r = (_ringOuter + _ringInner) / 2;
 
     return SizedBox(
@@ -138,16 +185,10 @@ class _RadialNavMenuState extends State<RadialNavMenu>
               ),
             ),
           ),
-          for (var i = 0; i < items.length; i++)
+          for (var i = 0; i < items.length && i < _angles.length; i++)
             Positioned(
-              left:
-                  _ringOuter +
-                  r * math.cos(items[i].angle * math.pi / 180) -
-                  24,
-              top:
-                  _ringOuter -
-                  r * math.sin(items[i].angle * math.pi / 180) -
-                  24,
+              left: _ringOuter + r * math.cos(_angles[i] * math.pi / 180) - 24,
+              top: _ringOuter - r * math.sin(_angles[i] * math.pi / 180) - 24,
               width: 48,
               height: 48,
               child: ScaleTransition(
@@ -160,16 +201,7 @@ class _RadialNavMenuState extends State<RadialNavMenu>
     );
   }
 
-  Widget _ringIcon(
-    ({
-      RadialNavItem item,
-      IconData icon,
-      String tooltip,
-      double angle,
-      VoidCallback? onTap,
-    })
-    it,
-  ) {
+  Widget _ringIcon(RadialNavEntry it) {
     final active = widget.current == it.item;
     final disabled = it.onTap == null && !active;
     return Tooltip(

@@ -9,7 +9,6 @@ import 'package:sekitaran/features/auth/biometric_service.dart';
 import 'package:sekitaran/features/auth/fingerprint_flow.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
-import 'package:sekitaran/features/home/user_radial_nav_menu.dart';
 import 'package:sekitaran/features/profile/profile_service.dart';
 import 'package:sekitaran/features/store/add_store_page.dart';
 import 'package:sekitaran/features/store/edit_store_page.dart';
@@ -805,8 +804,8 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         widget.isRegularUser
-            ? UserRadialNavMenu(
-                current: UserNavItem.profile,
+            ? RadialNavMenu.regular(
+                current: RadialNavItem.profile,
                 onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
                 onExplore: () => _snack('Coming soon'),
                 onCurrency: () => _snack('Coming soon'),

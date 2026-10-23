@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:sekitaran/features/home/user_radial_nav_menu.dart';
+import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/profile/profile_page.dart';
 
 /// Dashboard Regular User. Sengaja sederhana; styling menyusul.
@@ -223,8 +223,8 @@ class RegularHomePage extends StatelessWidget {
             ),
           ),
         ),
-        UserRadialNavMenu(
-          current: UserNavItem.home,
+        RadialNavMenu.regular(
+          current: RadialNavItem.home,
           onHome: () {}, // sudah berada di halaman ini
           onProfile: () => Navigator.of(context).push(
             MaterialPageRoute(
