@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
+import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/currency_page.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
@@ -19,7 +20,8 @@ class RegularHomePage extends StatefulWidget {
   State<RegularHomePage> createState() => _RegularHomePageState();
 }
 
-class _RegularHomePageState extends State<RegularHomePage> {
+class _RegularHomePageState extends State<RegularHomePage>
+    with SingleTickerProviderStateMixin {
   static const _green = Color(0xFF103D17);
   static const _accent = Color(0xFF5BAA5F);
   static const _ink = Color(0xFF252525);
@@ -28,6 +30,7 @@ class _RegularHomePageState extends State<RegularHomePage> {
   static const _grey = Color(0xFF7A7A7A);
 
   final _mapCtl = MapController();
+  late final _mover = MapMover(this, _mapCtl);
   bool _mapReady = false;
   LatLng? _pos;
   bool _locating = false;
@@ -47,6 +50,7 @@ class _RegularHomePageState extends State<RegularHomePage> {
 
   @override
   void dispose() {
+    _mover.dispose();
     _mapCtl.dispose();
     super.dispose();
   }
@@ -112,7 +116,7 @@ class _RegularHomePageState extends State<RegularHomePage> {
       setState(() {
         _pos = here;
       });
-      if (_mapReady) _mapCtl.move(here, 17);
+      if (_mapReady) _mover.reveal(here);
     } on TimeoutException {
       _fail('Could not get your location. Try again outdoors.');
     } catch (_) {
@@ -280,9 +284,12 @@ class _RegularHomePageState extends State<RegularHomePage> {
       options: MapOptions(
         initialCenter: here,
         initialZoom: 17,
-        onMapReady: () => _mapReady = true,
+        onMapReady: () {
+          _mapReady = true;
+          _mover.ready = true;
+        },
         interactionOptions: const InteractionOptions(
-          flags: InteractiveFlag.none,
+          flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom,
         ),
       ),
       children: [
@@ -377,7 +384,19 @@ class _RegularHomePageState extends State<RegularHomePage> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _border.withValues(alpha: 0.7)),
       ),
-      child: here != null ? _liveMap(here) : _mapPlaceholder(),
+      child: here == null
+          ? _mapPlaceholder()
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                _liveMap(here),
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: MapLocateButton(busy: _locating, onTap: _locate),
+                ),
+              ],
+            ),
     );
   }
 

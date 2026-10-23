@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
+import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/profile/profile_page.dart';
@@ -55,6 +56,7 @@ class _CurrencyPageState extends State<CurrencyPage>
   String? _error;
   bool _loading = false;
   String? _code;
+  bool _open = false;
   final _mapCtl = MapController();
   bool _mapReady = false;
   bool _locating = false;
@@ -225,7 +227,9 @@ class _CurrencyPageState extends State<CurrencyPage>
       if (!mounted) return;
       final here = LatLng(p.latitude, p.longitude);
       setState(() => _pos = here);
-      _animateTo(here, 15);
+      if (!isPointInView(_mapCtl.camera, here)) {
+        _animateTo(here, _mapCtl.camera.zoom);
+      }
     } on TimeoutException {
       if (mounted) _snack('Could not get your location.');
     } on String catch (m) {
@@ -319,36 +323,130 @@ class _CurrencyPageState extends State<CurrencyPage>
     ),
   );
 
+  Widget _currencyField(List<String> codes) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: codes.isEmpty ? null : () => setState(() => _open = !_open),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _open ? _green : _border,
+            width: _open ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _code ?? '-',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: _ink,
+                ),
+              ),
+            ),
+            AnimatedRotation(
+              turns: _open ? 0.5 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: const Icon(Icons.keyboard_arrow_down, color: _grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _codePanel(List<String> codes) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: !_open
+          ? const SizedBox(width: double.infinity)
+          : Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(12),
+              constraints: const BoxConstraints(maxHeight: 180),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _border.withValues(alpha: 0.7)),
+              ),
+              child: SingleChildScrollView(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final c in codes)
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => setState(() {
+                          _code = c;
+                          _open = false;
+                        }),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 160),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: c == _code ? _green : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: c == _code ? _green : _border,
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Text(
+                            c,
+                            style: GoogleFonts.poppins(
+                              fontSize: 12.5,
+                              fontWeight: c == _code
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: c == _code ? Colors.white : _ink,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
   Widget _input() {
     final codes = _codes;
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: TextField(
-            controller: _amount,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (_) => setState(() {}),
-            style: GoogleFonts.poppins(fontSize: 15),
-            decoration: _deco('Amount'),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            key: ValueKey('${_code}_${codes.length}'),
-            initialValue: _code,
-            isExpanded: true,
-            decoration: _deco('Currency'),
-            items: [
-              for (final c in codes)
-                DropdownMenuItem(
-                  value: c,
-                  child: Text(c, style: GoogleFonts.poppins(fontSize: 14)),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _amount,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
                 ),
-            ],
-            onChanged: codes.isEmpty ? null : (v) => setState(() => _code = v),
-          ),
+                onChanged: (_) => setState(() {}),
+                style: GoogleFonts.poppins(fontSize: 15),
+                decoration: _deco('Amount'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: _currencyField(codes)),
+          ],
         ),
+        _codePanel(codes),
       ],
     );
   }

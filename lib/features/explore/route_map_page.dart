@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
+import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/profile/profile_page.dart';
 
@@ -18,7 +19,8 @@ class RouteMapPage extends StatefulWidget {
   State<RouteMapPage> createState() => _RouteMapPageState();
 }
 
-class _RouteMapPageState extends State<RouteMapPage> {
+class _RouteMapPageState extends State<RouteMapPage>
+    with SingleTickerProviderStateMixin {
   static const _green = Color(0xFF103D17);
   static const _accent = Color(0xFF5BAA5F);
   static const _routeColor = Color(0xFF2F6FED); // garis rute (kedua mode)
@@ -28,6 +30,7 @@ class _RouteMapPageState extends State<RouteMapPage> {
   static const _grey = Color(0xFF7A7A7A);
 
   final _mapCtl = MapController();
+  late final _mover = MapMover(this, _mapCtl);
   bool _ready = false;
   RouteMode _mode = RouteMode.air;
   RoadRoute? _road;
@@ -36,6 +39,7 @@ class _RouteMapPageState extends State<RouteMapPage> {
 
   @override
   void dispose() {
+    _mover.dispose();
     _mapCtl.dispose();
     super.dispose();
   }
@@ -184,7 +188,10 @@ class _RouteMapPageState extends State<RouteMapPage> {
                 padding: const EdgeInsets.all(56),
                 maxZoom: 18,
               ),
-              onMapReady: () => _ready = true,
+              onMapReady: () {
+                _ready = true;
+                _mover.ready = true;
+              },
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
@@ -257,6 +264,17 @@ class _RouteMapPageState extends State<RouteMapPage> {
             top: 8,
             right: 8,
             child: _mapButton(Icons.center_focus_strong_outlined, _fit),
+          ),
+          Positioned(
+            top: 52,
+            right: 8,
+            child: _mapButton(Icons.my_location, () {
+              if (_mover.isVisible(widget.origin)) {
+                _fit();
+              } else {
+                _mover.animateTo(widget.origin);
+              }
+            }),
           ),
           if (_loadingRoad && _mode == RouteMode.road)
             const Positioned.fill(
