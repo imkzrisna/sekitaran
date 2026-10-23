@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/app_confirm_dialog.dart';
 import 'package:sekitaran/features/auth/biometric_service.dart';
 import 'package:sekitaran/features/auth/fingerprint_flow.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
+import 'package:sekitaran/features/profile/profile_service.dart';
 import 'package:sekitaran/features/store/add_store_page.dart';
 import 'package:sekitaran/features/store/edit_store_page.dart';
 
@@ -29,11 +31,14 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _loggingOut = false;
   bool _fingerprintOn = false;
   bool _fingerprintBusy = false;
+  String? _avatarUrl;
+  bool _photoBusy = false;
 
   @override
   void initState() {
     super.initState();
     _loadFingerprint();
+    _loadAvatar();
   }
 
   Future<void> _loadFingerprint() async {
@@ -125,7 +130,77 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _loadAvatar() async {
+    try {
+      final url = await ProfileService.instance.fetchAvatarUrl();
+      if (mounted) setState(() => _avatarUrl = url);
+    } on ProfileFailure {
+      // Foto gagal dimuat: cukup tampilkan inisial.
+    }
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    if (_photoBusy) return;
+    XFile? file;
+    try {
+      file = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+    } catch (_) {
+      if (mounted) {
+        _snack(
+          source == ImageSource.camera
+              ? 'Could not open the camera.'
+              : 'Could not open the gallery.',
+        );
+      }
+      return;
+    }
+    if (file == null || !mounted) return;
+    setState(() => _photoBusy = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final url = await ProfileService.instance.uploadAvatar(bytes, file.name);
+      if (!mounted) return;
+      setState(() => _avatarUrl = url);
+      _snack('Profile photo updated');
+    } on ProfileFailure catch (e) {
+      if (mounted) _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _photoBusy = false);
+    }
+  }
+
+  Future<void> _removePhoto() async {
+    if (_photoBusy || _avatarUrl == null) return;
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Remove profile photo?',
+      message:
+          'Your photo will be deleted and your initial will be shown instead.',
+      confirmLabel: 'Remove',
+      destructive: true,
+      icon: Icons.delete_outline,
+    );
+    if (!ok || !mounted) return;
+    setState(() => _photoBusy = true);
+    try {
+      await ProfileService.instance.removeAvatar();
+      if (!mounted) return;
+      setState(() => _avatarUrl = null);
+      _snack('Profile photo removed');
+    } on ProfileFailure catch (e) {
+      if (mounted) _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _photoBusy = false);
+    }
+  }
+
   void _showPhotoSheet() {
+    if (_photoBusy) return;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: _bg,
@@ -141,18 +216,26 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               _underlined('Profile photo'),
               const SizedBox(height: 8),
-              _sheetRow(ctx, Icons.photo_camera_outlined, 'Take a photo'),
+              _sheetRow(
+                ctx,
+                Icons.photo_camera_outlined,
+                'Take a photo',
+                () => _pickPhoto(ImageSource.camera),
+              ),
               _sheetRow(
                 ctx,
                 Icons.photo_library_outlined,
                 'Choose from gallery',
+                () => _pickPhoto(ImageSource.gallery),
               ),
-              _sheetRow(
-                ctx,
-                Icons.delete_outline,
-                'Remove photo',
-                danger: true,
-              ),
+              if (_avatarUrl != null)
+                _sheetRow(
+                  ctx,
+                  Icons.delete_outline,
+                  'Remove photo',
+                  _removePhoto,
+                  danger: true,
+                ),
             ],
           ),
         ),
@@ -163,7 +246,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _sheetRow(
     BuildContext ctx,
     IconData icon,
-    String text, {
+    String text,
+    VoidCallback onTap, {
     bool danger = false,
   }) {
     final color = danger ? Colors.red.shade600 : _ink;
@@ -171,8 +255,7 @@ class _ProfilePageState extends State<ProfilePage> {
       behavior: HitTestBehavior.opaque,
       onTap: () {
         Navigator.pop(ctx);
-        // TODO: pilih/unggah foto (image_picker + storage) di tahap backend
-        _snack('$text is not available yet (UI only)');
+        onTap();
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -191,6 +274,56 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _avatarImage() {
+    final initial = Container(
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(color: _green, shape: BoxShape.circle),
+      child: Text(
+        _initial,
+        style: GoogleFonts.poppins(
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+    );
+    final url = _avatarUrl;
+    final base = url == null
+        ? initial
+        : ClipOval(
+            child: Image.network(
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => initial,
+              loadingBuilder: (_, child, progress) =>
+                  progress == null ? child : initial,
+            ),
+          );
+    if (!_photoBusy) return base;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        base,
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            color: Color(0x66000000),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -342,21 +475,7 @@ class _ProfilePageState extends State<ProfilePage> {
               shape: BoxShape.circle,
               border: Border.all(color: _accent, width: 1.6),
             ),
-            child: Container(
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: _green,
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                _initial,
-                style: GoogleFonts.poppins(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+            child: _avatarImage(),
           ),
           Positioned(
             right: -2,
