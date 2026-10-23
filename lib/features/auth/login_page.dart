@@ -93,10 +93,72 @@ class _LoginPageState extends State<LoginPage> {
       );
   }
 
+  Future<BiometricAccount?> _pickAccount(List<BiometricAccount> list) {
+    return showModalBottomSheet<BiometricAccount>(
+      context: context,
+      backgroundColor: _bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+              child: Text(
+                'Choose account',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: _label,
+                ),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final a in list)
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                      ),
+                      leading: const Icon(Icons.fingerprint, color: _green),
+                      title: Text(
+                        a.username,
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: _label,
+                        ),
+                      ),
+                      subtitle: a.roleLabel.isEmpty
+                          ? null
+                          : Text(
+                              a.roleLabel,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12.5,
+                                color: _grey,
+                              ),
+                            ),
+                      onTap: () => Navigator.pop(ctx, a),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _fingerprintLogin() async {
     if (_loading) return;
     final bio = BiometricService.instance;
-    if (!await bio.hasCredentials()) {
+    final accounts = await bio.accounts();
+    if (accounts.isEmpty) {
       _snack(
         'Login sidik jari belum diaktifkan. Masuk dengan password, lalu aktifkan di halaman Profile.',
       );
@@ -106,19 +168,22 @@ class _LoginPageState extends State<LoginPage> {
       _snack('Sidik jari tidak tersedia atau belum terdaftar di perangkat ini.');
       return;
     }
-    final ok = await bio.authenticate('Verifikasi sidik jari untuk masuk ke Sekitaran');
+    final ok = await bio.authenticate(
+      'Verifikasi sidik jari untuk masuk ke Sekitaran',
+    );
     if (!ok || !mounted) return;
-    final cred = await bio.readCredentials();
-    if (cred == null) {
-      if (!mounted) return;
-      _snack('Data login sidik jari tidak ditemukan. Aktifkan ulang di halaman Profile.');
-      return;
-    }
+
+    // Pilihan akun muncul setelah sidik jari lolos, bukan sebelumnya.
+    final account = accounts.length == 1
+        ? accounts.first
+        : await _pickAccount(accounts);
+    if (account == null || !mounted) return;
+
     setState(() => _loading = true);
     try {
       await AuthService.instance.signIn(
-        identifier: cred.identifier,
-        password: cred.password,
+        identifier: account.identifier,
+        password: account.password,
       );
       await _finishLogin();
     } on AuthFailure catch (e) {
