@@ -30,13 +30,7 @@ class _WordlePageState extends State<WordlePage> {
               padding: const EdgeInsets.fromLTRB(28, 56, 28, 40),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _title(),
-                  const SizedBox(height: 16),
-                  _subtitle(),
-                  const SizedBox(height: 32),
-                  _emptySectionCard(),
-                ],
+                children: [],
               ),
             ),
           ),
@@ -162,4 +156,3 @@ class _WordlePageState extends State<WordlePage> {
     );
   }
 }
-

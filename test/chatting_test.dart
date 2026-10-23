@@ -199,5 +199,25 @@ void main() {
       expect(status, EditMessageStatus.userDoesNotOwnTheMessage);
       expect(newMessage!.message, "Hello there!");
     });
+    test("when a user has a profile picture, should fetch that profile picture when watching", () async {
+      final id = Uuid().v4();
+
+      final avatarUrl = "somewhere/in/the/database.jpg";
+      final message = Message(
+        "Hello there!",
+        "user1",
+      ).withId(id).withAvatarUrl(avatarUrl);
+
+      await service.sendChatAsync(message);
+
+      final newMessage = await gateway.getMessageByIdAsync(id);
+      final allMessage = gateway.getAll();
+
+      expect(newMessage, isNotNull);
+      expect(newMessage!.avatarUrl, avatarUrl);
+
+      expect(allMessage.firstOrNull, isNotNull);
+      expect(allMessage.firstOrNull!.avatarUrl, avatarUrl);
+    });
   });
 }

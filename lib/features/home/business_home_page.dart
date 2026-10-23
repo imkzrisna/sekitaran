@@ -1,9 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/profile/profile_page.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/core/reveal.dart';
 import 'package:sekitaran/features/home/all_comments_page.dart';
 import 'package:sekitaran/features/home/business_service.dart';
+import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/store/add_store_page.dart';
 import 'package:sekitaran/features/store/edit_store_page.dart';
 
@@ -14,20 +17,12 @@ class BusinessHomePage extends StatefulWidget {
   State<BusinessHomePage> createState() => _BusinessHomePageState();
 }
 
-class _BusinessHomePageState extends State<BusinessHomePage>
-    with SingleTickerProviderStateMixin {
+class _BusinessHomePageState extends State<BusinessHomePage> {
   static const _green = Color(0xFF103D17);
   static const _accent = Color(0xFF5BAA5F);
   static const _label = Color(0xFF252525);
   static const _bg = Color(0xFFF2F9F8);
   static const _grey = Color(0xFF7A7A7A);
-
-  // Ukuran tombol & menu melingkar
-  static const _fabSize = 58.0;
-  static const _fabRight = 20.0;
-  static const _fabBottom = 40.0;
-  static const _ringOuter = 143.0;
-  static const _ringInner = 90.0;
 
   final _service = BusinessService.instance;
 
@@ -46,16 +41,6 @@ class _BusinessHomePageState extends State<BusinessHomePage>
 
   int _requestId = 0; // mencegah respons lama menimpa pilihan terbaru
 
-  late final AnimationController _ctrl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 250),
-  );
-  late final Animation<double> _anim = CurvedAnimation(
-    parent: _ctrl,
-    curve: Curves.easeOutCubic,
-  );
-
-  bool _open = false;
   double _syncTurns = 0; // tiap +1 = satu putaran penuh
 
   @override
@@ -66,13 +51,7 @@ class _BusinessHomePageState extends State<BusinessHomePage>
 
   @override
   void dispose() {
-    _ctrl.dispose();
     super.dispose();
-  }
-
-  void _toggle() {
-    setState(() => _open = !_open);
-    _open ? _ctrl.forward() : _ctrl.reverse();
   }
 
   // ---------- Data ----------
@@ -752,13 +731,13 @@ class _BusinessHomePageState extends State<BusinessHomePage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _title(),
+                Reveal(index: 0, child: _title()),
                 const SizedBox(height: 16),
-                _subtitle(),
+                Reveal(index: 1, child: _subtitle()),
                 const SizedBox(height: 22),
-                _myBusinessRow(),
+                Reveal(index: 2, child: _myBusinessRow()),
                 const SizedBox(height: 22),
-                _underlined('Store Overview'),
+                Reveal(index: 3, child: _underlined('Store Overview')),
                 const SizedBox(height: 14),
                 if (_loading)
                   _spinner()
@@ -769,9 +748,9 @@ class _BusinessHomePageState extends State<BusinessHomePage>
                     'Anda belum memiliki bisnis. Tambahkan bisnis untuk mulai mengelola.',
                   )
                 else ...[
-                  _storeOverview(),
+                  Reveal(index: 0, child: _storeOverview()),
                   const SizedBox(height: 24),
-                  _recentCommentsRow(),
+                  Reveal(index: 1, child: _recentCommentsRow()),
                   const SizedBox(height: 14),
                   _commentsSection(),
                 ],
@@ -785,181 +764,32 @@ class _BusinessHomePageState extends State<BusinessHomePage>
 
   // ---------- Menu melingkar ----------
 
-  Widget _radialMenu() {
-    // sudut (derajat) tiap ikon, dari bawah ke atas
-    final items =
-        <({IconData icon, String tooltip, double angle, VoidCallback onTap})>[
-          (
-            icon: Icons.person_outline,
-            tooltip: 'Profile',
-            angle: 199,
-            onTap: () {
-              /* TODO: halaman profil */
-            },
-          ),
-          (
-            icon: Icons.home_outlined,
-            tooltip: 'Home',
-            angle: 163,
-            onTap: () {
-              /* sudah di Home */
-            },
-          ),
-          (
-            icon: Icons.add_circle_outline,
-            tooltip: 'Add item',
-            angle: 126,
-            onTap: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const AddStorePage()))
-                .then((_) {
-                  if (mounted) _loadBusinesses();
-                }),
-          ),
-          (
-            icon: Icons.edit_outlined,
-            tooltip: 'Edit',
-            angle: 90,
-            onTap: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const EditStorePage()))
-                .then((_) {
-                  if (mounted) _loadBusinesses();
-                }),
-          ),
-        ];
-
-    const r = (_ringOuter + _ringInner) / 2;
-
-    return ScaleTransition(
-      scale: _anim,
-      child: SizedBox(
-        width: _ringOuter * 2,
-        height: _ringOuter * 2,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _RingPainter(
-                    color: _green,
-                    inner: _ringInner,
-                    outer: _ringOuter,
-                  ),
-                ),
-              ),
-            ),
-            for (final it in items)
-              Positioned(
-                left: _ringOuter + r * math.cos(it.angle * math.pi / 180) - 24,
-                top: _ringOuter - r * math.sin(it.angle * math.pi / 180) - 24,
-                width: 48,
-                height: 48,
-                child: Tooltip(
-                  message: it.tooltip,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      it.onTap();
-                      _toggle();
-                    },
-                    child: Icon(it.icon, color: Colors.white, size: 28),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-
-    return Scaffold(
-      backgroundColor: _bg,
-      body: LayoutBuilder(
-        builder: (context, c) {
-          final cx = c.maxWidth - _fabRight - _fabSize / 2;
-          final cy = c.maxHeight - _fabBottom - bottomInset - _fabSize / 2;
-
-          return Stack(
-            children: [
-              _content(),
-
-              // Area luar menu: ketuk untuk menutup
-              if (_open)
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _toggle,
-                  ),
-                ),
-
-              // Busur menu
-              Positioned(
-                left: cx - _ringOuter,
-                top: cy - _ringOuter,
-                child: IgnorePointer(ignoring: !_open, child: _radialMenu()),
-              ),
-
-              // Tombol utama
-              Positioned(
-                right: _fabRight,
-                bottom: _fabBottom + bottomInset,
-                child: GestureDetector(
-                  onTap: _toggle,
-                  child: Container(
-                    width: _fabSize,
-                    height: _fabSize,
-                    decoration: const BoxDecoration(
-                      color: _green,
-                      shape: BoxShape.circle,
-                    ),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(
-                        _open ? Icons.close : Icons.widgets_outlined,
-                        key: ValueKey(_open),
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Scaffold(backgroundColor: _bg, body: _content()),
+        RadialNavMenu(
+          current: RadialNavItem.home,
+          onProfile: () =>
+              Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const ProfilePage())),
+          onAddStore: () =>
+              Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const AddStorePage()))
+                  .then((_) {
+                    if (mounted) _loadBusinesses();
+                  }),
+          onEdit: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const EditStorePage()))
+              .then((_) {
+                if (mounted) _loadBusinesses();
+              }),
+        ),
+      ],
     );
   }
-}
-
-class _RingPainter extends CustomPainter {
-  const _RingPainter({
-    required this.color,
-    required this.inner,
-    required this.outer,
-  });
-
-  final Color color;
-  final double inner;
-  final double outer;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = Offset(size.width / 2, size.height / 2);
-    final path = Path()
-      ..fillType = PathFillType.evenOdd
-      ..addOval(Rect.fromCircle(center: c, radius: outer))
-      ..addOval(Rect.fromCircle(center: c, radius: inner));
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(covariant _RingPainter old) =>
-      old.color != color || old.inner != inner || old.outer != outer;
 }
 
 const _kStagger = Duration(milliseconds: 90);
