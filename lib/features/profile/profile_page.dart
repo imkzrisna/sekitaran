@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/app_confirm_dialog.dart';
@@ -148,9 +149,9 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       file = await ImagePicker().pickImage(
         source: source,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 90,
       );
     } catch (_) {
       if (mounted) {
@@ -163,10 +164,52 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
     if (file == null || !mounted) return;
+
+    // Potong menjadi bingkai lingkaran (hasil berupa kotak 1:1, ditampilkan
+    // bulat oleh avatar).
+    CroppedFile? cropped;
+    try {
+      cropped = await ImageCropper().cropImage(
+        sourcePath: file.path,
+        maxWidth: 800,
+        maxHeight: 800,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 85,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop photo',
+            toolbarColor: _green,
+            toolbarWidgetColor: Colors.white,
+            activeControlsWidgetColor: _green,
+            cropStyle: CropStyle.circle,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+            hideBottomControls: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop photo',
+            cropStyle: CropStyle.circle,
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+            aspectRatioPickerButtonHidden: true,
+          ),
+        ],
+      );
+    } catch (e, st) {
+      debugPrint('CROP ERROR: $e\n$st');
+      if (mounted) _snack('Could not open the photo editor.');
+      return;
+    }
+    if (cropped == null || !mounted) return; // dibatalkan
+
     setState(() => _photoBusy = true);
     try {
-      final bytes = await file.readAsBytes();
-      final url = await ProfileService.instance.uploadAvatar(bytes, file.name);
+      final bytes = await cropped.readAsBytes();
+      final url = await ProfileService.instance.uploadAvatar(
+        bytes,
+        'avatar.jpg',
+      );
       if (!mounted) return;
       setState(() => _avatarUrl = url);
       _snack('Profile photo updated');
