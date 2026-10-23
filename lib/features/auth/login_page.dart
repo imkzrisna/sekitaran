@@ -66,31 +66,30 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Dipakai bersama oleh login password dan login sidik jari.
   Future<void> _finishLogin() async {
-      var profile = await AuthService.instance.fetchMyProfile();
-      if (profile == null) {
-        // Email sudah terverifikasi tapi profil belum sempat dibuat.
-        await AuthService.instance.ensureProfile();
-        profile = await AuthService.instance.fetchMyProfile();
-      }
-      if (!mounted) return;
-      if (profile == null || profile['role'] == null) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
-        );
-        return;
-      }
-
-      _snack('Login berhasil sebagai ${profile['username']}');
-      await Future.delayed(const Duration(milliseconds: 1200));
-      if (!mounted) return;
-
-      final Widget next = profile['role'] == 'business'
-          ? const BusinessHomePage()
-          : const RegularHomePage();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => next),
-        (_) => false,
+    var profile = await AuthService.instance.fetchMyProfile();
+    if (profile == null) {
+      // Email sudah terverifikasi tapi profil belum sempat dibuat.
+      await AuthService.instance.ensureProfile();
+      profile = await AuthService.instance.fetchMyProfile();
+    }
+    if (!mounted) return;
+    if (profile == null || profile['role'] == null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
       );
+      return;
+    }
+
+    _snack('Login berhasil sebagai ${profile['username']}');
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (!mounted) return;
+
+    final Widget next = profile['role'] == 'business'
+        ? const BusinessHomePage()
+        : const RegularHomePage();
+    Navigator.of(
+      context,
+    ).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => next), (_) => false);
   }
 
   Future<BiometricAccount?> _pickAccount(List<BiometricAccount> list) {
@@ -165,7 +164,9 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
     if (!await bio.isAvailable()) {
-      _snack('Sidik jari tidak tersedia atau belum terdaftar di perangkat ini.');
+      _snack(
+        'Sidik jari tidak tersedia atau belum terdaftar di perangkat ini.',
+      );
       return;
     }
     final ok = await bio.authenticate(

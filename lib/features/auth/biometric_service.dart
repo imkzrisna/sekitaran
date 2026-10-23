@@ -101,7 +101,10 @@ class BiometricService {
       if (raw == null || raw.isEmpty) return const [];
       final list = jsonDecode(raw);
       if (list is! List) return const [];
-      return list.map(BiometricAccount.fromJson).whereType<BiometricAccount>().toList();
+      return list
+          .map(BiometricAccount.fromJson)
+          .whereType<BiometricAccount>()
+          .toList();
     } catch (_) {
       return const [];
     }

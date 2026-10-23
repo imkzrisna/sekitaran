@@ -38,8 +38,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadFingerprint() async {
     final uid = _user?.id;
-    final on =
-        uid != null && await BiometricService.instance.hasAccount(uid);
+    final on = uid != null && await BiometricService.instance.hasAccount(uid);
     if (mounted) setState(() => _fingerprintOn = on);
   }
 
