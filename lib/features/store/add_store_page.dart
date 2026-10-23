@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sekitaran/features/profile/profile_page.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/core/reveal.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/store/location_picker_map.dart';
 import 'package:sekitaran/features/store/edit_store_page.dart';
@@ -1131,13 +1132,13 @@ class _AddStorePageState extends State<AddStorePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _title(),
+                          Reveal(index: 0, child: _title()),
                           const SizedBox(height: 12),
-                          _subtitle(),
+                          Reveal(index: 1, child: _subtitle()),
                         ],
                       ),
                     ),
-                    _storeInfoCard(),
+                    Reveal(index: 2, child: _storeInfoCard()),
                     AnimatedSize(
                       duration: const Duration(milliseconds: 240),
                       curve: Curves.easeOut,

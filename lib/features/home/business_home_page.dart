@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:sekitaran/features/profile/profile_page.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/core/reveal.dart';
 import 'package:sekitaran/features/home/all_comments_page.dart';
 import 'package:sekitaran/features/home/business_service.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
@@ -730,13 +731,13 @@ class _BusinessHomePageState extends State<BusinessHomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _title(),
+                Reveal(index: 0, child: _title()),
                 const SizedBox(height: 16),
-                _subtitle(),
+                Reveal(index: 1, child: _subtitle()),
                 const SizedBox(height: 22),
-                _myBusinessRow(),
+                Reveal(index: 2, child: _myBusinessRow()),
                 const SizedBox(height: 22),
-                _underlined('Store Overview'),
+                Reveal(index: 3, child: _underlined('Store Overview')),
                 const SizedBox(height: 14),
                 if (_loading)
                   _spinner()
@@ -747,9 +748,9 @@ class _BusinessHomePageState extends State<BusinessHomePage> {
                     'Anda belum memiliki bisnis. Tambahkan bisnis untuk mulai mengelola.',
                   )
                 else ...[
-                  _storeOverview(),
+                  Reveal(index: 0, child: _storeOverview()),
                   const SizedBox(height: 24),
-                  _recentCommentsRow(),
+                  Reveal(index: 1, child: _recentCommentsRow()),
                   const SizedBox(height: 14),
                   _commentsSection(),
                 ],

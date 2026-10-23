@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sekitaran/features/profile/profile_page.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/core/reveal.dart';
 import 'package:sekitaran/core/app_confirm_dialog.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/store/add_store_page.dart'
@@ -1237,15 +1238,15 @@ class _EditStorePageState extends State<EditStorePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _title(),
+                          Reveal(index: 0, child: _title()),
                           const SizedBox(height: 12),
-                          _subtitle(),
+                          Reveal(index: 1, child: _subtitle()),
                           const SizedBox(height: 22),
-                          _myBusinessRow(),
+                          Reveal(index: 2, child: _myBusinessRow()),
                         ],
                       ),
                     ),
-                    _content(),
+                    Reveal(index: 3, child: _content()),
                   ],
                 ),
               ),
