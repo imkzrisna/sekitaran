@@ -9,12 +9,16 @@ import 'package:sekitaran/features/auth/biometric_service.dart';
 import 'package:sekitaran/features/auth/fingerprint_flow.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
+import 'package:sekitaran/features/home/user_radial_nav_menu.dart';
 import 'package:sekitaran/features/profile/profile_service.dart';
 import 'package:sekitaran/features/store/add_store_page.dart';
 import 'package:sekitaran/features/store/edit_store_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({super.key, this.isRegularUser = false});
+
+  /// true untuk Regular User: memakai menu melingkar versi user.
+  final bool isRegularUser;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -800,15 +804,25 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ),
-        RadialNavMenu(
-          current: RadialNavItem.profile,
-          onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
-          onAddStore: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const AddStorePage())),
-          onEdit: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const EditStorePage())),
-          onProfile: () {}, // sudah berada di halaman ini
-        ),
+        widget.isRegularUser
+            ? UserRadialNavMenu(
+                current: UserNavItem.profile,
+                onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
+                onExplore: () => _snack('Coming soon'),
+                onCurrency: () => _snack('Coming soon'),
+                onProfile: () {}, // sudah berada di halaman ini
+              )
+            : RadialNavMenu(
+                current: RadialNavItem.profile,
+                onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
+                onAddStore: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const AddStorePage())),
+                onEdit: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EditStorePage()),
+                ),
+                onProfile: () {}, // sudah berada di halaman ini
+              ),
       ],
     );
   }
