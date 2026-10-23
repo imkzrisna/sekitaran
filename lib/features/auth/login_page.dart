@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/fingerprint_scan_sheet.dart';
 import 'package:sekitaran/features/auth/auth_service.dart';
 import 'package:sekitaran/features/auth/create_account_page.dart';
 import 'package:sekitaran/features/onboarding/role_selection_page.dart';
@@ -353,39 +354,71 @@ class _LoginPageState extends State<LoginPage> {
                     ),
 
                     const SizedBox(height: 28),
-                    InkWell(
-                      onTap: _submit,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: _green, width: 2),
-                        ),
-                        child: Container(
-                          height: 76,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: _green,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: _loading
-                              ? const SizedBox(
-                                  width: 28,
-                                  height: 28,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3,
-                                    color: Colors.white,
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: _submit,
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: _green, width: 2),
+                                ),
+                                child: Container(
+                                  height: 76,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: _green,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
                                   ),
-                                )
-                              : Text(
-                                  'Login',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
+                                  child: _loading
+                                      ? const SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 3,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Text(
+                                          'Login',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          FingerprintButton(
+                            onTap: () async {
+                              final ok = await showFingerprintScan(
+                                context,
+                                title: 'Login with fingerprint',
+                                message:
+                                    'Touch the fingerprint sensor to log in.',
+                              );
+                              if (!ok || !context.mounted) return;
+                              // TODO: login biometrik (local_auth) di tahap berikutnya
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Fingerprint recognized (UI only)',
                                   ),
                                 ),
-                        ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
 
