@@ -67,6 +67,12 @@ class StoreRepository {
           throw const StoreFailure(
             'Toko tidak ditemukan atau bukan milik Anda.',
           );
+        case '23503':
+          throw StoreFailure(
+            e.message.contains('exchange_rates_currency_fkey')
+                ? 'Mata uang tidak didukung. Pilih dari daftar.'
+                : 'Data terkait tidak ditemukan.',
+          );
         case '23505':
           throw const StoreFailure(
             'Mata uang yang sama diisi lebih dari sekali.',

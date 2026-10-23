@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/profile/profile_page.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/core/reveal.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
+import 'package:sekitaran/features/store/currency_picker.dart';
 import 'package:sekitaran/features/store/location_picker_map.dart';
 import 'package:sekitaran/features/store/edit_store_page.dart';
 import 'package:sekitaran/features/store/maps_link_parser.dart';
@@ -913,27 +916,12 @@ class _AddStorePageState extends State<AddStorePage> {
       onRemove: () => _removeAt(i),
       children: [
         _fieldLabel('Foreign currency', top: 4),
-        _field(
+        CurrencyPickerField(
+          key: ObjectKey(r.currency),
           controller: r.currency,
-          hint: 'e.g. USD',
-          fill: Colors.white,
-          formatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
-            LengthLimitingTextInputFormatter(3),
-            TextInputFormatter.withFunction(
-              (old, next) => next.copyWith(text: next.text.toUpperCase()),
-            ),
-          ],
+          radius: 2,
           onChanged: (_) => setState(() {}),
-          validator: (v) {
-            final req = _requiredIfAny(v, all, 'Enter the currency code');
-            if (req != null) return req;
-            final t = (v ?? '').trim();
-            if (t.isNotEmpty && t.length != 3) {
-              return 'Use a 3-letter code, e.g. USD';
-            }
-            return null;
-          },
+          validator: (v) => _requiredIfAny(v, all, 'Select a currency'),
         ),
         _fieldLabel('Price in (${code.isEmpty ? '__' : code})', top: 12),
         _field(
@@ -956,7 +944,8 @@ class _AddStorePageState extends State<AddStorePage> {
         _fieldLabel('Service Fee (IDR)', top: 12),
         _field(
           controller: r.fee,
-          hint: 'Enter service fee (optional)',
+          hint: 'Enter service fee',
+          validator: (v) => _requiredIfAny(v, all, 'Enter the service fee'),
           fill: Colors.white,
           keyboardType: TextInputType.number,
           formatters: [ThousandsSeparatorFormatter()],
@@ -1093,12 +1082,15 @@ class _AddStorePageState extends State<AddStorePage> {
       children: [
         _buildScaffold(context),
         RadialNavMenu(
+          current: RadialNavItem.add,
+          onProfile: () =>
+              Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const ProfilePage())),
           // Dashboard adalah route pertama (dibuka lewat pushAndRemoveUntil).
           onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
           onAddStore: () {}, // sudah berada di halaman ini
           onEdit: () => Navigator.of(context)
               .push(MaterialPageRoute(builder: (_) => const EditStorePage())),
-          // TODO: onProfile dan onEdit setelah halamannya ada.
         ),
       ],
     );
@@ -1121,33 +1113,19 @@ class _AddStorePageState extends State<AddStorePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerLeft,
-                      constraints: const BoxConstraints(
-                        minWidth: 40,
-                        minHeight: 40,
-                      ),
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new,
-                        size: 20,
-                        color: _green,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 56),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _title(),
+                          Reveal(index: 0, child: _title()),
                           const SizedBox(height: 12),
-                          _subtitle(),
+                          Reveal(index: 1, child: _subtitle()),
                         ],
                       ),
                     ),
-                    _storeInfoCard(),
+                    Reveal(index: 2, child: _storeInfoCard()),
                     AnimatedSize(
                       duration: const Duration(milliseconds: 240),
                       curve: Curves.easeOut,

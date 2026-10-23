@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/auth/fingerprint_scan_sheet.dart';
 import 'package:sekitaran/features/auth/auth_service.dart';
+import 'package:sekitaran/features/auth/biometric_service.dart';
 import 'package:sekitaran/features/auth/create_account_page.dart';
 import 'package:sekitaran/features/onboarding/role_selection_page.dart';
 import 'package:sekitaran/features/home/business_home_page.dart';
@@ -53,31 +55,138 @@ class _LoginPageState extends State<LoginPage> {
         identifier: _username.text,
         password: _password.text,
       );
-      var profile = await AuthService.instance.fetchMyProfile();
-      if (profile == null) {
-        // Email sudah terverifikasi tapi profil belum sempat dibuat.
-        await AuthService.instance.ensureProfile();
-        profile = await AuthService.instance.fetchMyProfile();
-      }
+      await _finishLogin();
+    } on AuthFailure catch (e) {
       if (!mounted) return;
-      if (profile == null || profile['role'] == null) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
-        );
-        return;
-      }
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
-      _snack('Login berhasil sebagai ${profile['username']}');
-      await Future.delayed(const Duration(milliseconds: 1200));
-      if (!mounted) return;
-
-      final Widget next = profile['role'] == 'business'
-          ? const BusinessHomePage()
-          : const RegularHomePage();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => next),
-        (_) => false,
+  /// Dipakai bersama oleh login password dan login sidik jari.
+  Future<void> _finishLogin() async {
+    var profile = await AuthService.instance.fetchMyProfile();
+    if (profile == null) {
+      // Email sudah terverifikasi tapi profil belum sempat dibuat.
+      await AuthService.instance.ensureProfile();
+      profile = await AuthService.instance.fetchMyProfile();
+    }
+    if (!mounted) return;
+    if (profile == null || profile['role'] == null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
       );
+      return;
+    }
+
+    _snack('Login berhasil sebagai ${profile['username']}');
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (!mounted) return;
+
+    final Widget next = profile['role'] == 'business'
+        ? const BusinessHomePage()
+        : const RegularHomePage();
+    Navigator.of(
+      context,
+    ).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => next), (_) => false);
+  }
+
+  Future<BiometricAccount?> _pickAccount(List<BiometricAccount> list) {
+    return showModalBottomSheet<BiometricAccount>(
+      context: context,
+      backgroundColor: _bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+              child: Text(
+                'Choose account',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: _label,
+                ),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final a in list)
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                      ),
+                      leading: const Icon(Icons.fingerprint, color: _green),
+                      title: Text(
+                        a.username,
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: _label,
+                        ),
+                      ),
+                      subtitle: a.roleLabel.isEmpty
+                          ? null
+                          : Text(
+                              a.roleLabel,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12.5,
+                                color: _grey,
+                              ),
+                            ),
+                      onTap: () => Navigator.pop(ctx, a),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _fingerprintLogin() async {
+    if (_loading) return;
+    final bio = BiometricService.instance;
+    final accounts = await bio.accounts();
+    if (accounts.isEmpty) {
+      _snack(
+        'Login sidik jari belum diaktifkan. Masuk dengan password, lalu aktifkan di halaman Profile.',
+      );
+      return;
+    }
+    if (!await bio.isAvailable()) {
+      _snack(
+        'Sidik jari tidak tersedia atau belum terdaftar di perangkat ini.',
+      );
+      return;
+    }
+    final ok = await bio.authenticate(
+      'Verifikasi sidik jari untuk masuk ke Sekitaran',
+    );
+    if (!ok || !mounted) return;
+
+    // Pilihan akun muncul setelah sidik jari lolos, bukan sebelumnya.
+    final account = accounts.length == 1
+        ? accounts.first
+        : await _pickAccount(accounts);
+    if (account == null || !mounted) return;
+
+    setState(() => _loading = true);
+    try {
+      await AuthService.instance.signIn(
+        identifier: account.identifier,
+        password: account.password,
+      );
+      await _finishLogin();
     } on AuthFailure catch (e) {
       if (!mounted) return;
       _snack(e.message);
@@ -353,39 +462,53 @@ class _LoginPageState extends State<LoginPage> {
                     ),
 
                     const SizedBox(height: 28),
-                    InkWell(
-                      onTap: _submit,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: _green, width: 2),
-                        ),
-                        child: Container(
-                          height: 76,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: _green,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: _loading
-                              ? const SizedBox(
-                                  width: 28,
-                                  height: 28,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  'Login',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: _submit,
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: _green, width: 2),
                                 ),
-                        ),
+                                child: Container(
+                                  height: 76,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: _green,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: _loading
+                                      ? const SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 3,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Text(
+                                          'Login',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          FingerprintButton(onTap: _fingerprintLogin),
+                        ],
                       ),
                     ),
 

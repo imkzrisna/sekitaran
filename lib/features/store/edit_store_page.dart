@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/profile/profile_page.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/core/reveal.dart';
+import 'package:sekitaran/core/app_confirm_dialog.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
+import 'package:sekitaran/features/store/currency_picker.dart';
 import 'package:sekitaran/features/store/add_store_page.dart'
     show AddStorePage, StoreCategory, ThousandsSeparatorFormatter;
 import 'package:sekitaran/features/store/store_repository.dart';
@@ -264,48 +268,14 @@ class _EditStorePageState extends State<EditStorePage> {
     required String message,
     required String action,
   }) async {
-    final r = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _bg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          title,
-          style: GoogleFonts.poppins(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: _ink,
-          ),
-        ),
-        content: Text(
-          message,
-          style: GoogleFonts.poppins(fontSize: 13, color: _grey, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w500,
-                color: _ink,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              action,
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                color: Colors.red.shade600,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return showConfirmDialog(
+      context,
+      title: title,
+      message: message,
+      confirmLabel: action,
+      destructive: true,
+      icon: Icons.delete_outline,
     );
-    return r == true;
   }
 
   Future<void> _pickStore() async {
@@ -937,24 +907,11 @@ class _EditStorePageState extends State<EditStorePage> {
       onDelete: () => _deleteEntry(d, i),
       children: [
         _fieldLabel('Foreign currency', top: 4),
-        _field(
+        CurrencyPickerField(
+          key: ObjectKey(r.currency),
           controller: r.currency,
-          hint: 'e.g. USD',
           fill: Colors.white,
-          formatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
-            LengthLimitingTextInputFormatter(3),
-            TextInputFormatter.withFunction(
-              (old, next) => next.copyWith(text: next.text.toUpperCase()),
-            ),
-          ],
           onChanged: (_) => setState(() {}),
-          validator: (v) {
-            final t = (v ?? '').trim();
-            if (t.isEmpty) return 'Enter the currency code';
-            if (t.length != 3) return 'Use a 3-letter code, e.g. USD';
-            return null;
-          },
         ),
         _fieldLabel('Price in (${code.isEmpty ? '__' : code})', top: 12),
         _field(
@@ -977,7 +934,9 @@ class _EditStorePageState extends State<EditStorePage> {
         _fieldLabel('Service Fee (IDR)', top: 12),
         _field(
           controller: r.fee,
-          hint: 'Enter service fee (optional)',
+          hint: 'Enter service fee',
+          validator: (v) =>
+              (v ?? '').trim().isEmpty ? 'Enter the service fee' : null,
           fill: Colors.white,
           keyboardType: TextInputType.number,
           formatters: [ThousandsSeparatorFormatter()],
@@ -1233,11 +1192,14 @@ class _EditStorePageState extends State<EditStorePage> {
       children: [
         _buildScaffold(context),
         RadialNavMenu(
+          current: RadialNavItem.edit,
+          onProfile: () =>
+              Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const ProfilePage())),
           // Dashboard adalah route pertama (dibuka lewat pushAndRemoveUntil).
           onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
           onAddStore: _openAddStore,
           onEdit: () {}, // sudah berada di halaman ini
-          // TODO: onProfile setelah halamannya ada.
         ),
       ],
     );
@@ -1260,35 +1222,21 @@ class _EditStorePageState extends State<EditStorePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerLeft,
-                      constraints: const BoxConstraints(
-                        minWidth: 40,
-                        minHeight: 40,
-                      ),
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new,
-                        size: 20,
-                        color: _green,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 56),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _title(),
+                          Reveal(index: 0, child: _title()),
                           const SizedBox(height: 12),
-                          _subtitle(),
+                          Reveal(index: 1, child: _subtitle()),
                           const SizedBox(height: 22),
-                          _myBusinessRow(),
+                          Reveal(index: 2, child: _myBusinessRow()),
                         ],
                       ),
                     ),
-                    _content(),
+                    Reveal(index: 3, child: _content()),
                   ],
                 ),
               ),
