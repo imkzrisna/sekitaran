@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
+import 'package:sekitaran/features/explore/currency_page.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/profile/profile_page.dart';
@@ -34,6 +35,7 @@ class _RegularHomePageState extends State<RegularHomePage> {
   List<Shop> _shops = const [];
   ShopCategory? _filter; // null = semua kategori
   double _syncTurns = 0;
+  static const _radiusMeters = 5000.0; // radius maksimal 5 km
   String? _shopsError;
 
   @override
@@ -129,17 +131,23 @@ class _RegularHomePageState extends State<RegularHomePage> {
     }
   }
 
-  List<Shop> get _visibleShops => [
-    for (final s in _shops)
-      if (_filter == null || s.category == _filter) s,
-  ];
+  List<Shop> get _visibleShops {
+    final here = _pos;
+    return [
+      for (final s in _shops)
+        if (s.category != ShopCategory.exchange &&
+            (_filter == null || s.category == _filter) &&
+            (here == null || airMeters(here, s.position) <= _radiusMeters))
+          s,
+    ];
+  }
 
   List<ShopDistance> _nearest(LatLng here) {
     final list = [
       for (final s in _visibleShops)
         ShopDistance(s, airMeters(here, s.position)),
     ]..sort((a, b) => a.meters.compareTo(b.meters));
-    return list.take(5).toList();
+    return list; // ascending: terdekat sampai terjauh (maks 5 km)
   }
 
   // ---------- Komponen dasar ----------
@@ -473,7 +481,7 @@ class _RegularHomePageState extends State<RegularHomePage> {
     }
     if (_shopsError != null) return _hint(_shopsError!);
     final items = _nearest(here);
-    if (items.isEmpty) return _hint('No shops found for this category yet.');
+    if (items.isEmpty) return _hint('No shops within 5 km for this category yet.');
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
       child: Column(
@@ -529,7 +537,7 @@ class _RegularHomePageState extends State<RegularHomePage> {
                         children: [
                           _chip('All', null),
                           for (final c in ShopCategory.values)
-                            _chip(c.label, c),
+                            if (c != ShopCategory.exchange) _chip(c.label, c),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -550,7 +558,9 @@ class _RegularHomePageState extends State<RegularHomePage> {
             ),
           ),
           onExplore: () => _snack('Coming soon'),
-          onCurrency: () => _snack('Coming soon'),
+          onCurrency: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CurrencyPage()),
+          ),
         ),
       ],
     );

@@ -377,7 +377,7 @@ class _RouteMapPageState extends State<RouteMapPage> {
             margin: const EdgeInsets.symmetric(horizontal: 16),
             color: _green,
           ),
-          _stat(road ? 'Est. time (by car)' : 'Est. time', time),
+          _stat(road ? 'Est. time (motorcycle, approx.)' : 'Est. time', time),
         ],
       ),
     );
