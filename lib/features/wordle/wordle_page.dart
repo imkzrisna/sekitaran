@@ -1,5 +1,13 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/wordle/widget/game_status.dart';
+import 'package:sekitaran/features/wordle/widget/input_section.dart';
+import 'package:sekitaran/features/wordle/widget/wordle_board.dart';
+import 'package:sekitaran/features/wordle/wordle_instance.dart';
+import 'package:sekitaran/features/wordle/wordle_status.dart';
+import 'package:sekitaran/features/wordle/vo/wordle_guess_result.dart';
 
 class WordlePage extends StatefulWidget {
   const WordlePage({super.key});
@@ -17,6 +25,64 @@ class _WordlePageState extends State<WordlePage> {
   static const _grey = Color(0xFF7A7A7A);
   static const _border = Color(0xFFC9C9C9);
 
+  // Word list for the game
+  static const _words = [
+    'kosan',
+    'kopma',
+    'dosen',
+    'teman',
+    'rindu',
+    'bekal',
+    'kirim',
+    'hemat',
+    'lapar',
+    'murah',
+    'kamar',
+    'pulau',
+    'nasib',
+    'mandi',
+  ];
+
+  late final WordleInstance _instance;
+  WordleGuessResult? _lastResult;
+  bool _isGameOver = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initGame();
+  }
+
+  void _initGame() {
+    final rng = Random();
+    final chosenWord = _words[rng.nextInt(_words.length)];
+    _instance = WordleInstance().setCorrectWord(chosenWord);
+    _lastResult = null;
+    _isGameOver = false;
+  }
+
+  void _retryGame() {
+    final rng = Random();
+    final newWord = _words[rng.nextInt(_words.length)];
+    _instance.reset(newWord);
+    setState(() {
+      _lastResult = null;
+      _isGameOver = false;
+    });
+  }
+
+  void _handleGuess(String word) {
+    if (_isGameOver) return;
+
+    final result = _instance.guess(word.toLowerCase());
+    setState(() {
+      _lastResult = result;
+      _isGameOver =
+          result.status == WordleStatus.correct ||
+          result.status == WordleStatus.outOfTries;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -30,7 +96,17 @@ class _WordlePageState extends State<WordlePage> {
               padding: const EdgeInsets.fromLTRB(28, 56, 28, 40),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [],
+                children: [
+                  _title(),
+                  const SizedBox(height: 8),
+                  _subtitle(),
+                  const SizedBox(height: 32),
+                  _gameBoard(),
+                  const SizedBox(height: 16),
+                  _gameStatus(),
+                  const SizedBox(height: 16),
+                  _gameInput(),
+                ],
               ),
             ),
           ),
@@ -39,12 +115,33 @@ class _WordlePageState extends State<WordlePage> {
     );
   }
 
+  Widget _gameBoard() {
+    return WordleBoard(history: _lastResult?.history ?? []);
+  }
+
+  Widget _gameStatus() {
+    if (_lastResult == null) {
+      return GameStatus(status: WordleStatus.incorrect);
+    }
+    return GameStatus(
+      status: _lastResult!.status,
+      correctWord: _isGameOver && _lastResult!.status == WordleStatus.outOfTries
+          ? _instance.correctWord
+          : null,
+      onRetry: _isGameOver ? _retryGame : null,
+    );
+  }
+
+  Widget _gameInput() {
+    return InputSection(onGuess: _handleGuess, enabled: !_isGameOver);
+  }
+
   Widget _title() {
     return Stack(
       clipBehavior: Clip.none,
       children: [
         Text(
-          'Blank Page',
+          'Wordle',
           style: GoogleFonts.poppins(
             fontSize: 26,
             fontWeight: FontWeight.w600,
@@ -75,7 +172,7 @@ class _WordlePageState extends State<WordlePage> {
         border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
       ),
       child: Text(
-        'Start building your feature here',
+        'tebak kata lima huruf dengan batas 6 kali',
         style: GoogleFonts.poppins(
           fontSize: 15,
           fontWeight: FontWeight.w500,
