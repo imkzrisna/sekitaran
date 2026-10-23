@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
           },
         ),
       ),
-      home: WordlePage(),
+      home: LoginPage(),
     );
   }
 }
