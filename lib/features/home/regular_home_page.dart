@@ -34,10 +34,12 @@ class _RegularHomePageState extends State<RegularHomePage> {
   List<Shop> _shops = const [];
   ShopCategory? _filter; // null = semua kategori
   double _syncTurns = 0;
+  String? _shopsError;
 
   @override
   void initState() {
     super.initState();
+    _loadShops();
     _locate();
   }
 
@@ -59,6 +61,19 @@ class _RegularHomePageState extends State<RegularHomePage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  Future<void> _loadShops() async {
+    try {
+      final shops = await fetchShops();
+      if (!mounted) return;
+      setState(() {
+        _shops = shops;
+        _shopsError = null;
+      });
+    } on ShopsFailure catch (e) {
+      if (mounted) setState(() => _shopsError = e.message);
+    }
   }
 
   Future<void> _locate() async {
@@ -94,7 +109,6 @@ class _RegularHomePageState extends State<RegularHomePage> {
       final here = LatLng(p.latitude, p.longitude);
       setState(() {
         _pos = here;
-        _shops = sampleShopsAround(here);
       });
       if (_mapReady) _mapCtl.move(here, 17);
     } on TimeoutException {
@@ -224,6 +238,7 @@ class _RegularHomePageState extends State<RegularHomePage> {
       behavior: HitTestBehavior.opaque,
       onTap: () {
         setState(() => _syncTurns += 1);
+        _loadShops();
         _locate();
       },
       child: Padding(
@@ -456,8 +471,9 @@ class _RegularHomePageState extends State<RegularHomePage> {
     if (here == null) {
       return _hint('Nearby shops appear once your location is found.');
     }
+    if (_shopsError != null) return _hint(_shopsError!);
     final items = _nearest(here);
-    if (items.isEmpty) return _hint('No shops nearby for this category yet.');
+    if (items.isEmpty) return _hint('No shops found for this category yet.');
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
       child: Column(

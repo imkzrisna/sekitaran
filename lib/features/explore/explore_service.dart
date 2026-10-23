@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart' show IconData, Icons;
 import 'package:latlong2/latlong.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum ShopCategory {
   restaurant('Local Restaurant', Icons.restaurant_outlined),
@@ -74,6 +75,56 @@ List<Shop> sampleShopsAround(LatLng origin) {
     s('s5', 'Toko Sembako Berkah', ShopCategory.grocery, -0.006, -0.004),
     s('s6', 'Money Changer Sentosa', ShopCategory.exchange, 0.012, 0.01),
   ];
+}
+
+class ShopsFailure implements Exception {
+  const ShopsFailure(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
+ShopCategory? _categoryFrom(String? c) => switch (c) {
+  'restaurant' => ShopCategory.restaurant,
+  'grocery' => ShopCategory.grocery,
+  'money_changer' => ShopCategory.exchange,
+  _ => null,
+};
+
+double? _toD(Object? v) =>
+    v == null ? null : (v is num ? v.toDouble() : double.tryParse('$v'));
+
+/// Toko dari tabel businesses. Baris tanpa koordinat valid atau tanpa
+/// kategori yang dikenal dilewati.
+Future<List<Shop>> fetchShops() async {
+  try {
+    final rows = await Supabase.instance.client
+        .from('businesses')
+        .select('id, name, category, latitude, longitude')
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
+        .limit(500);
+    final out = <Shop>[];
+    for (final r in rows) {
+      final cat = _categoryFrom(r['category'] as String?);
+      final lat = _toD(r['latitude']);
+      final lng = _toD(r['longitude']);
+      if (cat == null || lat == null || lng == null) continue;
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+      if (lat == 0 && lng == 0) continue;
+      out.add(
+        Shop(
+          id: r['id'] as String,
+          name: r['name'] as String,
+          category: cat,
+          position: LatLng(lat, lng),
+        ),
+      );
+    }
+    return out;
+  } catch (_) {
+    throw const ShopsFailure('Could not load shops. Check your connection.');
+  }
 }
 
 class RoadRoute {
