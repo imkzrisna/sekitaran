@@ -10,6 +10,7 @@ import 'package:sekitaran/features/global_chat/adapter/session_manager/supabase_
 import 'package:sekitaran/features/global_chat/entity/message.dart';
 import 'package:sekitaran/features/global_chat/status/delete_status.dart';
 import 'package:sekitaran/features/global_chat/status/edit_message_status.dart';
+import 'package:sekitaran/features/global_chat/status/send_chat_status.dart';
 
 class ChatService {
   ChatService(this._gateway, this._session, this._profiles);
@@ -21,10 +22,12 @@ class ChatService {
   Stream<List<Message>>? get chatList =>
       _session.currentSession != null ? _gateway.watchMessages() : null;
 
-  Future<void> sendChatAsync(Message message) async {
-    if (_session.currentSession == null) return;
+  Future<SendChatStatus> sendChatAsync(Message message) async {
+    if (_session.currentSession == null) return SendChatStatus.unauthenticated;
 
     _gateway.sendMessageAsync(message);
+
+    return SendChatStatus.success;
   }
 
   Future<void> dispose() => _gateway.dispose();
@@ -90,13 +93,16 @@ class ChatService {
       return EditMessageStatus.messageNotFound;
     }
 
-    if (currentUser!.username != targetMessage!.username) {
+    if (currentUser.username != targetMessage.username) {
       return EditMessageStatus.userDoesNotOwnTheMessage;
     }
 
     await _gateway.editMessageByIdAsync(
       id,
-      Message(newMessage, currentUser.username).withId(id),
+      Message(
+        newMessage,
+        currentUser.username,
+      ).withId(id).withAvatarUrl(targetMessage.avatarUrl),
     );
 
     return EditMessageStatus.success;

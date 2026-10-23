@@ -33,6 +33,7 @@ class SupabaseChatGateway implements ChatGatewayInterface {
       "username": message.username,
       "created_at": DateTime.now().toString(),
       "user_id": user.userId,
+      "avatar_url": message.avatarUrl,
     });
   }
 
@@ -71,7 +72,9 @@ class SupabaseChatGateway implements ChatGatewayInterface {
       final List<Message> messages = (response as List).map((row) {
         final username = row["username"] as String;
         final messageText = row['message'] as String? ?? '';
-        return Message(messageText, username);
+        final avatarUrl = row["avatar_url"] as String? ?? "";
+
+        return Message(messageText, username).withAvatarUrl(avatarUrl);
       }).toList();
 
       controller.add(messages);
@@ -102,7 +105,10 @@ class SupabaseChatGateway implements ChatGatewayInterface {
       return null;
     }
 
-    return Message(row["message"], row["username"]);
+    return Message(
+      row["message"],
+      row["username"],
+    ).withAvatarUrl(row["avatar_url"]);
   }
 
   @override

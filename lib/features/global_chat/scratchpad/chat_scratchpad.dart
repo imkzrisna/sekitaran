@@ -25,15 +25,17 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
     );
 
     final id = Uuid().v4();
-    await _service.sendChatAsync(
-      Message("How are you?", "anotherUser").withId(id),
+    final sendChatStatus = await _service.sendChatAsync(
+      Message(
+        "How are you?",
+        "anotherUser",
+      ).withId(id).withAvatarUrl("somewhere/in/the/database.jpg"),
     );
 
     final status = await _service.editMessageAsync(id, "I'm doing great!");
 
-    await _service.deleteChatById(id);
-
     print("update status: " + status.toString());
+    print("send chat status: " + sendChatStatus.toString());
   }
 
   @override
@@ -109,7 +111,9 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
                       final message = messages[index];
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text('${message.username}: ${message.message}'),
+                        child: Text(
+                          '${message.avatarUrl}: ${message.username}: ${message.message}',
+                        ),
                       );
                     },
                   );
