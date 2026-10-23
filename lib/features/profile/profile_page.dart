@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/app_confirm_dialog.dart';
+import 'package:sekitaran/features/auth/fingerprint_scan_sheet.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/store/add_store_page.dart';
@@ -14,41 +17,17 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage>
-    with SingleTickerProviderStateMixin {
+class _ProfilePageState extends State<ProfilePage> {
   static const _green = Color(0xFF103D17);
   static const _accent = Color(0xFF5BAA5F);
   static const _ink = Color(0xFF252525);
   static const _bg = Color(0xFFF2F9F8);
   static const _border = Color(0xFFC9C9C9);
   static const _grey = Color(0xFF7A7A7A);
-  static const _sections = 5;
-
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 800),
-  );
-  late final List<Animation<double>> _anims = List.generate(_sections, (i) {
-    final start = i * 0.1;
-    return CurvedAnimation(
-      parent: _c,
-      curve: Interval(start, start + 0.5, curve: Curves.easeOutCubic),
-    );
-  });
 
   bool _loggingOut = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _c.forward();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
+  // TODO: simpan status ini (dan daftarkan biometrik sungguhan) di tahap backend
+  bool _fingerprintOn = false;
 
   // ---------- Data ----------
 
@@ -61,7 +40,8 @@ class _ProfilePageState extends State<ProfilePage>
 
   String get _email => _user?.email ?? '-';
 
-  String get _initial => _username.characters.first.toUpperCase();
+  String get _initial =>
+      String.fromCharCode(_username.runes.first).toUpperCase();
 
   bool get _emailVerified => _user?.emailConfirmedAt != null;
 
@@ -85,6 +65,14 @@ class _ProfilePageState extends State<ProfilePage>
     return '${months[d.month - 1]} ${d.year}';
   }
 
+  void _snack(String m) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  // ---------- Aksi ----------
+
   Future<void> _logout() async {
     if (_loggingOut) return;
     final ok = await showConfirmDialog(
@@ -106,29 +94,104 @@ class _ProfilePageState extends State<ProfilePage>
     } catch (_) {
       if (!mounted) return;
       setState(() => _loggingOut = false);
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(content: Text('Could not log out. Please try again.')),
-        );
+      _snack('Could not log out. Please try again.');
     }
   }
 
-  // ---------- Komponen ----------
+  Future<void> _toggleFingerprint(bool on) async {
+    if (on) {
+      final ok = await showFingerprintScan(
+        context,
+        title: 'Register your fingerprint',
+        message: 'Touch the fingerprint sensor to register it for login.',
+      );
+      if (!ok || !mounted) return;
+      setState(() => _fingerprintOn = true);
+      _snack('Fingerprint registered (UI only)');
+    } else {
+      final ok = await showConfirmDialog(
+        context,
+        title: 'Turn off fingerprint login?',
+        message: 'You will need your username and password to log in.',
+        confirmLabel: 'Turn off',
+        icon: Icons.fingerprint,
+      );
+      if (!ok || !mounted) return;
+      setState(() => _fingerprintOn = false);
+      _snack('Fingerprint login turned off (UI only)');
+    }
+  }
 
-  Widget _reveal(int i, Widget child) {
-    final a = _anims[i];
-    return FadeTransition(
-      opacity: a,
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.06),
-          end: Offset.zero,
-        ).animate(a),
-        child: child,
+  void _showPhotoSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: _bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _underlined('Profile photo'),
+              const SizedBox(height: 8),
+              _sheetRow(ctx, Icons.photo_camera_outlined, 'Take a photo'),
+              _sheetRow(
+                ctx,
+                Icons.photo_library_outlined,
+                'Choose from gallery',
+              ),
+              _sheetRow(
+                ctx,
+                Icons.delete_outline,
+                'Remove photo',
+                danger: true,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+
+  Widget _sheetRow(
+    BuildContext ctx,
+    IconData icon,
+    String text, {
+    bool danger = false,
+  }) {
+    final color = danger ? Colors.red.shade600 : _ink;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        Navigator.pop(ctx);
+        // TODO: pilih/unggah foto (image_picker + storage) di tahap backend
+        _snack('$text is not available yet (UI only)');
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: danger ? color : _green),
+            const SizedBox(width: 14),
+            Text(
+              text,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------- Komponen dasar (sama dengan dashboard) ----------
 
   Widget _underlined(String text, {double size = 16}) {
     return Container(
@@ -165,12 +228,12 @@ class _ProfilePageState extends State<ProfilePage>
             ),
           ),
           Positioned(
-            top: -12,
-            right: -20,
+            top: -14,
+            right: -22,
             child: Text(
               '*',
               style: GoogleFonts.poppins(
-                fontSize: 40,
+                fontSize: 44,
                 fontWeight: FontWeight.w500,
                 color: _green,
                 height: 1,
@@ -183,100 +246,77 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _subtitle() {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 3),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
-      ),
-      child: Text(
-        'Manage your account',
-        style: GoogleFonts.poppins(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: _ink,
-        ),
-      ),
+    final style = GoogleFonts.poppins(
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      color: _ink,
+      height: 1.5,
     );
-  }
-
-  Widget _card({
-    required Widget child,
-    EdgeInsets padding = const EdgeInsets.fromLTRB(16, 16, 16, 16),
-  }) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 16),
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border.withValues(alpha: 0.5)),
-      ),
-      child: child,
-    );
-  }
-
-  Widget _cardTitle(String title, IconData icon) {
-    return Row(
+    Widget word(String t) => Text(t, style: style);
+    return Wrap(
+      spacing: 5,
       children: [
-        Flexible(child: _underlined(title)),
-        const SizedBox(width: 8),
-        Icon(icon, color: _green, size: 22),
+        word('Hey,'),
+        Container(
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
+          ),
+          child: word('$_username!'),
+        ),
+        word("Here's"),
+        word('your'),
+        word('account.'),
       ],
     );
   }
 
-  Widget _profileCard() {
-    return _card(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 22),
+  Widget _header() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          padding: EdgeInsets.zero,
+          alignment: Alignment.centerLeft,
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: _green),
+        ),
+        const SizedBox(height: 28),
+        _title(),
+        const SizedBox(height: 14),
+        _subtitle(),
+      ],
+    );
+  }
+
+  /// Judul bagian: teks bergaris hijau + ikon, seperti "My Business".
+  Widget _heading(String text, IconData icon, {String? caption}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 32),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 84,
-            height: 84,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: _green,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              _initial,
-              style: GoogleFonts.poppins(
-                fontSize: 34,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+          Row(
+            children: [
+              Flexible(child: _underlined(text)),
+              const SizedBox(width: 6),
+              Icon(icon, color: _green, size: 22),
+            ],
+          ),
+          if (caption != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                caption,
+                style: GoogleFonts.poppins(fontSize: 12.5, color: _grey),
               ),
             ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            _username,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: _ink,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            _email,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.poppins(fontSize: 13, color: _grey),
-          ),
         ],
       ),
     );
   }
 
-  Widget _infoRow(
-    IconData icon,
-    String label,
-    Widget value, {
-    bool last = false,
-  }) {
+  Widget _line({required Widget child, bool last = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 13),
       decoration: BoxDecoration(
@@ -284,77 +324,212 @@ class _ProfilePageState extends State<ProfilePage>
             ? null
             : Border(bottom: BorderSide(color: _border.withValues(alpha: 0.6))),
       ),
+      child: child,
+    );
+  }
+
+  // ---------- Bagian ----------
+
+  Widget _avatar() {
+    return SizedBox(
+      width: 80,
+      height: 80,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: _accent, width: 1.6),
+            ),
+            child: Container(
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: _green,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                _initial,
+                style: GoogleFonts.poppins(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -2,
+            bottom: 0,
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: _bg,
+                shape: BoxShape.circle,
+                border: Border.all(color: _green, width: 1.3),
+              ),
+              child: const Icon(
+                Icons.photo_camera_outlined,
+                size: 13,
+                color: _green,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _identity() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 28),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _showPhotoSheet,
+        child: Row(
+          children: [
+            _avatar(),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _username,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: _green,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tap to change photo',
+                    style: GoogleFonts.poppins(fontSize: 12.5, color: _grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detail(
+    String label,
+    String value, {
+    Widget? trailing,
+    bool last = false,
+  }) {
+    return _line(
+      last: last,
       child: Row(
         children: [
-          Icon(icon, size: 20, color: _green),
-          const SizedBox(width: 14),
+          Text(label, style: GoogleFonts.poppins(fontSize: 13, color: _grey)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: _ink,
+                      ),
+                    ),
+                  ),
+                  if (trailing != null) ...[const SizedBox(width: 6), trailing],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _details() {
+    final verified = _emailVerified;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        children: [
+          _detail('Username', _username),
+          _detail('Email', _email),
+          _detail(
+            'Email status',
+            verified ? 'Verified' : 'Not verified',
+            trailing: Icon(
+              verified ? Icons.check_circle : Icons.error_outline,
+              size: 16,
+              color: verified ? _accent : Colors.orange.shade700,
+            ),
+          ),
+          _detail('Member since', _memberSince, last: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _fingerprintRow() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label,
-                  style: GoogleFonts.poppins(fontSize: 11.5, color: _grey),
+                  _fingerprintOn ? 'Enabled on this device' : 'Not set up',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: _ink,
+                  ),
                 ),
                 const SizedBox(height: 2),
-                value,
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _valueText(String text) {
-    return Text(
-      text,
-      overflow: TextOverflow.ellipsis,
-      style: GoogleFonts.poppins(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        color: _ink,
-      ),
-    );
-  }
-
-  Widget _detailsCard() {
-    final verified = _emailVerified;
-    return _card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _cardTitle('Account Details', Icons.badge_outlined),
-          const SizedBox(height: 6),
-          _infoRow(Icons.person_outline, 'Username', _valueText(_username)),
-          _infoRow(Icons.mail_outline, 'Email', _valueText(_email)),
-          _infoRow(
-            Icons.verified_outlined,
-            'Email status',
-            Row(
-              children: [
-                _valueText(verified ? 'Verified' : 'Not verified'),
-                const SizedBox(width: 6),
-                Icon(
-                  verified ? Icons.check_circle : Icons.error_outline,
-                  size: 16,
-                  color: verified ? _accent : Colors.orange.shade700,
+                Text(
+                  'Log in faster without typing your password.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: _grey,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
           ),
-          _infoRow(
-            Icons.event_outlined,
-            'Member since',
-            _valueText(_memberSince),
-            last: true,
+          const SizedBox(width: 12),
+          Switch(
+            value: _fingerprintOn,
+            onChanged: _toggleFingerprint,
+            thumbColor: const WidgetStatePropertyAll(Colors.white),
+            trackColor: WidgetStateProperty.resolveWith(
+              (s) => s.contains(WidgetState.selected) ? _green : _border,
+            ),
+            trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
           ),
         ],
       ),
     );
   }
 
-  Widget _actionRow(
+  Widget _action(
     IconData icon,
     String text,
     VoidCallback onTap, {
@@ -363,15 +538,8 @@ class _ProfilePageState extends State<ProfilePage>
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          border: last
-              ? null
-              : Border(
-                  bottom: BorderSide(color: _border.withValues(alpha: 0.6)),
-                ),
-        ),
+      child: _line(
+        last: last,
         child: Row(
           children: [
             Icon(icon, size: 20, color: _green),
@@ -393,20 +561,18 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _actionsCard() {
-    return _card(
+  Widget _actions() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardTitle('Quick Actions', Icons.bolt_outlined),
-          const SizedBox(height: 6),
-          _actionRow(
+          _action(
             Icons.edit_outlined,
             'Manage my stores',
             () => Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const EditStorePage())),
           ),
-          _actionRow(
+          _action(
             Icons.add_circle_outline,
             'Add a new store',
             () => Navigator.of(context)
@@ -418,9 +584,55 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
+  Widget _quote(String label, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 18),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 3,
+              decoration: BoxDecoration(
+                color: _accent,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _green,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    text,
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: _ink,
+                      height: 1.6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _logoutButton() {
     return Padding(
-      padding: const EdgeInsets.only(top: 24),
+      padding: const EdgeInsets.only(top: 40),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _logout,
@@ -474,50 +686,61 @@ class _ProfilePageState extends State<ProfilePage>
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 440),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 140),
+                  padding: const EdgeInsets.fromLTRB(28, 8, 28, 140),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _reveal(
-                        0,
-                        Column(
+                      _Reveal(index: 0, child: _header()),
+                      _Reveal(index: 1, child: _identity()),
+                      _Reveal(
+                        index: 2,
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            IconButton(
-                              onPressed: () => Navigator.of(context).maybePop(),
-                              padding: EdgeInsets.zero,
-                              alignment: Alignment.centerLeft,
-                              constraints: const BoxConstraints(
-                                minWidth: 40,
-                                minHeight: 40,
-                              ),
-                              icon: const Icon(
-                                Icons.arrow_back_ios_new,
-                                size: 20,
-                                color: _green,
-                              ),
+                            _heading('Account Details', Icons.badge_outlined),
+                            _details(),
+                          ],
+                        ),
+                      ),
+                      _Reveal(
+                        index: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _heading('Fingerprint Login', Icons.fingerprint),
+                            _fingerprintRow(),
+                          ],
+                        ),
+                      ),
+                      _Reveal(
+                        index: 4,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _heading('Quick Actions', Icons.bolt_outlined),
+                            _actions(),
+                          ],
+                        ),
+                      ),
+                      _Reveal(
+                        index: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _heading(
+                              'Saran & Kesan',
+                              Icons.rate_review_outlined,
+                              caption: 'Pemrograman Aplikasi Mobile',
                             ),
-                            const SizedBox(height: 16),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _title(),
-                                  const SizedBox(height: 12),
-                                  _subtitle(),
-                                ],
-                              ),
+                            _quote('Saran', 'Lebih baik jangan gegabah'),
+                            _quote(
+                              'Kesan',
+                              'Saya kurang tau dan partner saya kurang tau sooo all good hehe',
                             ),
                           ],
                         ),
                       ),
-                      _reveal(1, _profileCard()),
-                      _reveal(2, _detailsCard()),
-                      _reveal(3, _actionsCard()),
-                      _reveal(4, _logoutButton()),
+                      _Reveal(index: 6, child: _logoutButton()),
                     ],
                   ),
                 ),
@@ -535,6 +758,50 @@ class _ProfilePageState extends State<ProfilePage>
           onProfile: () {}, // sudah berada di halaman ini
         ),
       ],
+    );
+  }
+}
+
+/// Memunculkan anak dengan fade dan geser sedikit, bergantian per [index].
+class _Reveal extends StatefulWidget {
+  const _Reveal({required this.index, required this.child});
+
+  final int index;
+  final Widget child;
+
+  @override
+  State<_Reveal> createState() => _RevealState();
+}
+
+class _RevealState extends State<_Reveal> {
+  bool _show = false;
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    _t = Timer(Duration(milliseconds: 70 * widget.index), () {
+      if (mounted) setState(() => _show = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: _show ? 1 : 0,
+      duration: const Duration(milliseconds: 350),
+      child: AnimatedSlide(
+        offset: _show ? Offset.zero : const Offset(0, 0.06),
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+        child: widget.child,
+      ),
     );
   }
 }
