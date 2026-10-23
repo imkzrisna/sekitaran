@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/core/reveal.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
+import 'package:sekitaran/features/store/currency_picker.dart';
 import 'package:sekitaran/features/store/location_picker_map.dart';
 import 'package:sekitaran/features/store/edit_store_page.dart';
 import 'package:sekitaran/features/store/maps_link_parser.dart';
@@ -915,27 +916,12 @@ class _AddStorePageState extends State<AddStorePage> {
       onRemove: () => _removeAt(i),
       children: [
         _fieldLabel('Foreign currency', top: 4),
-        _field(
+        CurrencyPickerField(
+          key: ObjectKey(r.currency),
           controller: r.currency,
-          hint: 'e.g. USD',
-          fill: Colors.white,
-          formatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
-            LengthLimitingTextInputFormatter(3),
-            TextInputFormatter.withFunction(
-              (old, next) => next.copyWith(text: next.text.toUpperCase()),
-            ),
-          ],
+          radius: 2,
           onChanged: (_) => setState(() {}),
-          validator: (v) {
-            final req = _requiredIfAny(v, all, 'Enter the currency code');
-            if (req != null) return req;
-            final t = (v ?? '').trim();
-            if (t.isNotEmpty && t.length != 3) {
-              return 'Use a 3-letter code, e.g. USD';
-            }
-            return null;
-          },
+          validator: (v) => _requiredIfAny(v, all, 'Select a currency'),
         ),
         _fieldLabel('Price in (${code.isEmpty ? '__' : code})', top: 12),
         _field(

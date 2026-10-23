@@ -39,6 +39,12 @@ class StoreService {
       if (e.code == '23514') {
         throw const StoreFailure('Data tidak valid. Periksa kembali isian.');
       }
+      if (e.code == '23503' &&
+          e.message.contains('exchange_rates_currency_fkey')) {
+        throw const StoreFailure(
+          'Mata uang tidak didukung. Pilih dari daftar.',
+        );
+      }
       if (e.code == '23505') {
         throw const StoreFailure(
           'Mata uang yang sama diisi lebih dari sekali.',

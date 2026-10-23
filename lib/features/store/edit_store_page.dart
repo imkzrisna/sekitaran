@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/core/reveal.dart';
 import 'package:sekitaran/core/app_confirm_dialog.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
+import 'package:sekitaran/features/store/currency_picker.dart';
 import 'package:sekitaran/features/store/add_store_page.dart'
     show AddStorePage, StoreCategory, ThousandsSeparatorFormatter;
 import 'package:sekitaran/features/store/store_repository.dart';
@@ -906,24 +907,11 @@ class _EditStorePageState extends State<EditStorePage> {
       onDelete: () => _deleteEntry(d, i),
       children: [
         _fieldLabel('Foreign currency', top: 4),
-        _field(
+        CurrencyPickerField(
+          key: ObjectKey(r.currency),
           controller: r.currency,
-          hint: 'e.g. USD',
           fill: Colors.white,
-          formatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
-            LengthLimitingTextInputFormatter(3),
-            TextInputFormatter.withFunction(
-              (old, next) => next.copyWith(text: next.text.toUpperCase()),
-            ),
-          ],
           onChanged: (_) => setState(() {}),
-          validator: (v) {
-            final t = (v ?? '').trim();
-            if (t.isEmpty) return 'Enter the currency code';
-            if (t.length != 3) return 'Use a 3-letter code, e.g. USD';
-            return null;
-          },
         ),
         _fieldLabel('Price in (${code.isEmpty ? '__' : code})', top: 12),
         _field(
