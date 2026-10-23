@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/auth/fingerprint_scan_sheet.dart';
 import 'package:sekitaran/features/auth/auth_service.dart';
+import 'package:sekitaran/features/auth/biometric_service.dart';
 import 'package:sekitaran/features/auth/create_account_page.dart';
 import 'package:sekitaran/features/onboarding/role_selection_page.dart';
 import 'package:sekitaran/features/home/business_home_page.dart';
@@ -54,6 +55,17 @@ class _LoginPageState extends State<LoginPage> {
         identifier: _username.text,
         password: _password.text,
       );
+      await _finishLogin();
+    } on AuthFailure catch (e) {
+      if (!mounted) return;
+      _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Dipakai bersama oleh login password dan login sidik jari.
+  Future<void> _finishLogin() async {
       var profile = await AuthService.instance.fetchMyProfile();
       if (profile == null) {
         // Email sudah terverifikasi tapi profil belum sempat dibuat.
@@ -79,6 +91,36 @@ class _LoginPageState extends State<LoginPage> {
         MaterialPageRoute(builder: (_) => next),
         (_) => false,
       );
+  }
+
+  Future<void> _fingerprintLogin() async {
+    if (_loading) return;
+    final bio = BiometricService.instance;
+    if (!await bio.hasCredentials()) {
+      _snack(
+        'Login sidik jari belum diaktifkan. Masuk dengan password, lalu aktifkan di halaman Profile.',
+      );
+      return;
+    }
+    if (!await bio.isAvailable()) {
+      _snack('Sidik jari tidak tersedia atau belum terdaftar di perangkat ini.');
+      return;
+    }
+    final ok = await bio.authenticate('Verifikasi sidik jari untuk masuk ke Sekitaran');
+    if (!ok || !mounted) return;
+    final cred = await bio.readCredentials();
+    if (cred == null) {
+      if (!mounted) return;
+      _snack('Data login sidik jari tidak ditemukan. Aktifkan ulang di halaman Profile.');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await AuthService.instance.signIn(
+        identifier: cred.identifier,
+        password: cred.password,
+      );
+      await _finishLogin();
     } on AuthFailure catch (e) {
       if (!mounted) return;
       _snack(e.message);
@@ -399,25 +441,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          FingerprintButton(
-                            onTap: () async {
-                              final ok = await showFingerprintScan(
-                                context,
-                                title: 'Login with fingerprint',
-                                message:
-                                    'Touch the fingerprint sensor to log in.',
-                              );
-                              if (!ok || !context.mounted) return;
-                              // TODO: login biometrik (local_auth) di tahap berikutnya
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Fingerprint recognized (UI only)',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                          FingerprintButton(onTap: _fingerprintLogin),
                         ],
                       ),
                     ),

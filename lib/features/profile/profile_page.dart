@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/app_confirm_dialog.dart';
-import 'package:sekitaran/features/auth/fingerprint_scan_sheet.dart';
+import 'package:sekitaran/features/auth/auth_service.dart';
+import 'package:sekitaran/features/auth/biometric_service.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/store/add_store_page.dart';
@@ -26,8 +27,19 @@ class _ProfilePageState extends State<ProfilePage> {
   static const _grey = Color(0xFF7A7A7A);
 
   bool _loggingOut = false;
-  // TODO: simpan status ini (dan daftarkan biometrik sungguhan) di tahap backend
   bool _fingerprintOn = false;
+  bool _fingerprintBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFingerprint();
+  }
+
+  Future<void> _loadFingerprint() async {
+    final on = await BiometricService.instance.hasCredentials();
+    if (mounted) setState(() => _fingerprintOn = on);
+  }
 
   // ---------- Data ----------
 
@@ -98,28 +110,155 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<String?> _askPassword() {
+    final c = TextEditingController();
+    var hide = true;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          backgroundColor: _bg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Confirm your password',
+            style: GoogleFonts.poppins(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: _ink,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Needed once to enable fingerprint login on this device.',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: _grey,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: c,
+                obscureText: hide,
+                autofocus: true,
+                style: GoogleFonts.poppins(fontSize: 14, color: _ink),
+                decoration: InputDecoration(
+                  hintText: 'Enter your password',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      hide
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      size: 20,
+                      color: _grey,
+                    ),
+                    onPressed: () => setLocal(() => hide = !hide),
+                  ),
+                ),
+                onSubmitted: (v) => Navigator.pop(ctx, v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(color: _grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, c.text),
+              child: Text(
+                'Continue',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: _green,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _toggleFingerprint(bool on) async {
-    if (on) {
-      final ok = await showFingerprintScan(
-        context,
-        title: 'Register your fingerprint',
-        message: 'Touch the fingerprint sensor to register it for login.',
-      );
-      if (!ok || !mounted) return;
-      setState(() => _fingerprintOn = true);
-      _snack('Fingerprint registered (UI only)');
-    } else {
-      final ok = await showConfirmDialog(
-        context,
-        title: 'Turn off fingerprint login?',
-        message: 'You will need your username and password to log in.',
-        confirmLabel: 'Turn off',
-        icon: Icons.fingerprint,
-      );
-      if (!ok || !mounted) return;
-      setState(() => _fingerprintOn = false);
-      _snack('Fingerprint login turned off (UI only)');
+    if (_fingerprintBusy) return;
+    setState(() => _fingerprintBusy = true);
+    try {
+      if (on) {
+        await _enableFingerprint();
+      } else {
+        await _disableFingerprint();
+      }
+    } finally {
+      if (mounted) setState(() => _fingerprintBusy = false);
     }
+  }
+
+  Future<void> _enableFingerprint() async {
+    final bio = BiometricService.instance;
+    if (!await bio.isAvailable()) {
+      _snack(
+        'No fingerprint is set up on this phone. Add one in Settings > Biometrics and security.',
+      );
+      return;
+    }
+    if (!mounted) return;
+    final password = await _askPassword();
+    if (password == null || password.isEmpty || !mounted) return;
+
+    final raw = _user?.userMetadata?['username'];
+    final identifier = (raw is String && raw.trim().isNotEmpty)
+        ? raw.trim()
+        : _email;
+
+    // Verifikasi password dulu agar kredensial yang disimpan pasti benar.
+    try {
+      await AuthService.instance.signIn(
+        identifier: identifier,
+        password: password,
+      );
+    } on AuthFailure catch (e) {
+      if (!mounted) return;
+      _snack(e.message);
+      return;
+    }
+    if (!mounted) return;
+
+    final ok = await bio.authenticate(
+      'Confirm your fingerprint to enable login with it',
+    );
+    if (!mounted) return;
+    if (!ok) {
+      _snack('Fingerprint was not confirmed.');
+      return;
+    }
+    await bio.saveCredentials(identifier: identifier, password: password);
+    if (!mounted) return;
+    setState(() => _fingerprintOn = true);
+    _snack('Fingerprint login enabled');
+  }
+
+  Future<void> _disableFingerprint() async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Turn off fingerprint login?',
+      message: 'You will need your username and password to log in.',
+      confirmLabel: 'Turn off',
+      icon: Icons.fingerprint,
+    );
+    if (!ok || !mounted) return;
+    await BiometricService.instance.clear();
+    if (!mounted) return;
+    setState(() => _fingerprintOn = false);
+    _snack('Fingerprint login turned off');
   }
 
   void _showPhotoSheet() {
@@ -511,7 +650,7 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(width: 12),
           Switch(
             value: _fingerprintOn,
-            onChanged: _toggleFingerprint,
+            onChanged: _fingerprintBusy ? null : _toggleFingerprint,
             thumbColor: const WidgetStatePropertyAll(Colors.white),
             trackColor: WidgetStateProperty.resolveWith(
               (s) => s.contains(WidgetState.selected) ? _green : _border,
