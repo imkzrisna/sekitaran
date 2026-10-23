@@ -944,7 +944,8 @@ class _AddStorePageState extends State<AddStorePage> {
         _fieldLabel('Service Fee (IDR)', top: 12),
         _field(
           controller: r.fee,
-          hint: 'Enter service fee (optional)',
+          hint: 'Enter service fee',
+          validator: (v) => _requiredIfAny(v, all, 'Enter the service fee'),
           fill: Colors.white,
           keyboardType: TextInputType.number,
           formatters: [ThousandsSeparatorFormatter()],
