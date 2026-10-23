@@ -40,7 +40,8 @@ class CurrencyPage extends StatefulWidget {
   State<CurrencyPage> createState() => _CurrencyPageState();
 }
 
-class _CurrencyPageState extends State<CurrencyPage> {
+class _CurrencyPageState extends State<CurrencyPage>
+    with SingleTickerProviderStateMixin {
   static const _green = Color(0xFF103D17);
   static const _accent = Color(0xFF5BAA5F);
   static const _ink = Color(0xFF252525);
@@ -54,16 +55,30 @@ class _CurrencyPageState extends State<CurrencyPage> {
   String? _error;
   bool _loading = false;
   String? _code;
+  final _mapCtl = MapController();
+  bool _mapReady = false;
+  bool _locating = false;
+  late final AnimationController _anim = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 600),
+  );
+  LatLng _from = const LatLng(0, 0);
+  LatLng _to = const LatLng(0, 0);
+  double _z0 = 13;
+  double _z1 = 13;
 
   @override
   void initState() {
     super.initState();
+    _anim.addListener(_tick);
     _load();
   }
 
   @override
   void dispose() {
     _amount.dispose();
+    _anim.dispose();
+    _mapCtl.dispose();
     super.dispose();
   }
 
@@ -170,6 +185,55 @@ class _CurrencyPageState extends State<CurrencyPage> {
       if (mounted) setState(() => _error = 'Could not load money changers.');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // ---------- Peta ----------
+
+  void _snack(String m) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  void _tick() {
+    final t = Curves.easeInOutCubic.transform(_anim.value);
+    _mapCtl.move(
+      LatLng(
+        _from.latitude + (_to.latitude - _from.latitude) * t,
+        _from.longitude + (_to.longitude - _from.longitude) * t,
+      ),
+      _z0 + (_z1 - _z0) * t,
+    );
+  }
+
+  void _animateTo(LatLng target, double zoom) {
+    if (!_mapReady) return;
+    final cam = _mapCtl.camera;
+    _from = cam.center;
+    _z0 = cam.zoom;
+    _to = target;
+    _z1 = zoom;
+    _anim.forward(from: 0);
+  }
+
+  Future<void> _recenter() async {
+    if (_locating) return;
+    setState(() => _locating = true);
+    try {
+      final p = await _position();
+      if (!mounted) return;
+      final here = LatLng(p.latitude, p.longitude);
+      setState(() => _pos = here);
+      _animateTo(here, 15);
+    } on TimeoutException {
+      if (mounted) _snack('Could not get your location.');
+    } on String catch (m) {
+      if (mounted) _snack(m);
+    } catch (_) {
+      if (mounted) _snack('Could not get your location.');
+    } finally {
+      if (mounted) setState(() => _locating = false);
     }
   }
 
@@ -334,57 +398,106 @@ class _CurrencyPageState extends State<CurrencyPage> {
     );
   }
 
-  Widget _map(LatLng here, List<_Entry> entries) {
-    return Container(
-      height: 220,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border.withValues(alpha: 0.7)),
-      ),
-      child: FlutterMap(
-        options: MapOptions(
-          initialCenter: here,
-          initialZoom: 13,
-          interactionOptions: const InteractionOptions(
-            flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom,
+  Widget _locateButton() {
+    return Material(
+      color: Colors.white,
+      elevation: 2,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: _locating ? null : _recenter,
+        child: SizedBox(
+          width: 42,
+          height: 42,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: _locating
+                ? const Padding(
+                    key: ValueKey('busy'),
+                    padding: EdgeInsets.all(11),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: _green,
+                    ),
+                  )
+                : const Icon(
+                    Icons.my_location,
+                    key: ValueKey('idle'),
+                    size: 21,
+                    color: _green,
+                  ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _map(LatLng here, List<_Entry> entries) {
+    return Container(
+      height: 240,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border.withValues(alpha: 0.7)),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.sekitaran',
-          ),
-          MarkerLayer(
-            markers: [
-              for (final e in entries)
-                Marker(
-                  point: e.changer.shop.position,
-                  width: 30,
-                  height: 30,
-                  alignment: Alignment.topCenter,
-                  child: const Icon(Icons.location_on, color: _green, size: 30),
-                ),
-              Marker(
-                point: here,
-                width: 26,
-                height: 26,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: _accent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
+          FlutterMap(
+            mapController: _mapCtl,
+            options: MapOptions(
+              initialCenter: here,
+              initialZoom: 13,
+              onMapReady: () => _mapReady = true,
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom,
+              ),
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.sekitaran',
+              ),
+              MarkerLayer(
+                markers: [
+                  for (final e in entries)
+                    Marker(
+                      point: e.changer.shop.position,
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.topCenter,
+                      child: const Icon(
+                        Icons.location_on,
+                        color: _green,
+                        size: 30,
+                      ),
+                    ),
+                  Marker(
+                    point: here,
+                    width: 26,
+                    height: 26,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _accent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x55000000), blurRadius: 6),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
+              ),
+              const RichAttributionWidget(
+                alignment: AttributionAlignment.bottomLeft,
+                attributions: [
+                  TextSourceAttribution('© OpenStreetMap contributors'),
+                ],
               ),
             ],
           ),
-          const RichAttributionWidget(
-            alignment: AttributionAlignment.bottomLeft,
-            attributions: [
-              TextSourceAttribution('© OpenStreetMap contributors'),
-            ],
-          ),
+          Positioned(right: 10, bottom: 10, child: _locateButton()),
         ],
       ),
     );
@@ -490,6 +603,7 @@ class _CurrencyPageState extends State<CurrencyPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: 20),
         _map(here, entries),
         _heading('Stores offering ${_code ?? ''}', Icons.storefront_outlined),
         if (entries.isEmpty)

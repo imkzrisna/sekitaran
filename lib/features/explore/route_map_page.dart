@@ -21,7 +21,7 @@ class RouteMapPage extends StatefulWidget {
 class _RouteMapPageState extends State<RouteMapPage> {
   static const _green = Color(0xFF103D17);
   static const _accent = Color(0xFF5BAA5F);
-  static const _gold = Color(0xFFC99A4A);
+  static const _routeColor = Color(0xFF2F6FED); // garis rute (kedua mode)
   static const _ink = Color(0xFF252525);
   static const _bg = Color(0xFFF2F9F8);
   static const _border = Color(0xFFC9C9C9);
@@ -199,16 +199,18 @@ class _RouteMapPageState extends State<RouteMapPage> {
                   if (showRoad)
                     Polyline(
                       points: _road!.points,
-                      strokeWidth: 6,
-                      color: _green,
+                      strokeWidth: 5,
+                      color: _routeColor,
                       borderStrokeWidth: 2,
                       borderColor: Colors.white,
                     )
                   else
                     Polyline(
                       points: [widget.origin, widget.shop.position],
-                      strokeWidth: 4,
-                      color: _gold,
+                      strokeWidth: 5,
+                      color: _routeColor,
+                      borderStrokeWidth: 2,
+                      borderColor: Colors.white,
                     ),
                 ],
               ),
