@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class InputSection extends StatefulWidget {
   const InputSection({
@@ -37,6 +38,7 @@ class _InputSectionState extends State<InputSection> {
 
   @override
   Widget build(BuildContext context) {
+    final _green = Color(0xFF103D17);
     return Column(
       children: [
         const SizedBox(height: 24),
@@ -84,22 +86,31 @@ class _InputSectionState extends State<InputSection> {
         SizedBox(
           width: double.infinity,
           height: 50,
-          child: FilledButton(
-            onPressed: widget.enabled ? _submitGuess : null,
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF103D17),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              disabledBackgroundColor: Colors.grey.shade300,
-            ),
-            child: const Text(
-              'TEBAK',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1,
+          child: Expanded(
+            child: InkWell(
+              onTap: widget.enabled ? _submitGuess : null,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: _green, width: 2),
+                ),
+                child: Container(
+                  height: 76,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _green,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: Text(
+                    'Tebak',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -108,4 +119,3 @@ class _InputSectionState extends State<InputSection> {
     );
   }
 }
-
