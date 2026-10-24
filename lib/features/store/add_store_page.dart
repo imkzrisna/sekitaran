@@ -757,7 +757,7 @@ class _AddStorePageState extends State<AddStorePage> {
   InputDecoration _decoration(
     String hint, {
     bool dense = false,
-    Color fill = _bg,
+    Color fill = Colors.white,
   }) {
     OutlineInputBorder border(Color c) => OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
@@ -794,7 +794,7 @@ class _AddStorePageState extends State<AddStorePage> {
     List<TextInputFormatter>? formatters,
     ValueChanged<String>? onChanged,
     bool dense = false,
-    Color fill = _bg,
+    Color fill = Colors.white,
   }) {
     return TextFormField(
       key: ObjectKey(controller),
@@ -819,9 +819,9 @@ class _AddStorePageState extends State<AddStorePage> {
             child: Text(
               text,
               style: GoogleFonts.poppins(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: _ink,
+                color: _grey,
               ),
             ),
           ),
@@ -830,7 +830,7 @@ class _AddStorePageState extends State<AddStorePage> {
             Text(
               '*',
               style: GoogleFonts.poppins(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: _red,
               ),
@@ -900,22 +900,31 @@ class _AddStorePageState extends State<AddStorePage> {
   Widget _sectionCard({
     required IconData icon,
     required String title,
+    String? step,
     bool required = false,
     String? caption,
     required List<Widget> children,
   }) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      margin: const EdgeInsets.only(top: 28),
+      padding: const EdgeInsets.only(top: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border.withValues(alpha: 0.5)),
+        border: Border(
+          top: BorderSide(color: _border.withValues(alpha: 0.6)),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (step != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                step,
+                style: GoogleFonts.poppins(fontSize: 12, color: _grey),
+              ),
+            ),
           Row(
             children: [
               Flexible(
@@ -929,7 +938,7 @@ class _AddStorePageState extends State<AddStorePage> {
                   child: Text(
                     title,
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
+                      fontSize: 17,
                       fontWeight: FontWeight.w600,
                       color: _ink,
                     ),
@@ -957,9 +966,9 @@ class _AddStorePageState extends State<AddStorePage> {
               child: Text(
                 caption,
                 style: GoogleFonts.poppins(
-                  fontSize: 12,
+                  fontSize: 12.5,
                   color: _grey,
-                  height: 1.4,
+                  height: 1.45,
                 ),
               ),
             ),
@@ -975,12 +984,13 @@ class _AddStorePageState extends State<AddStorePage> {
       behavior: HitTestBehavior.opaque,
       onTap: () => _selectCategory(c),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
         alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 16),
         decoration: BoxDecoration(
-          color: selected ? _green : _bg,
-          borderRadius: BorderRadius.circular(10),
+          color: selected ? _green : Colors.white,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected
                 ? _green
@@ -991,7 +1001,7 @@ class _AddStorePageState extends State<AddStorePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(c.icon, size: 24, color: selected ? Colors.white : _green),
+            Icon(c.icon, size: 22, color: selected ? Colors.white : _green),
             const SizedBox(height: 8),
             Text(
               c.label,
@@ -1015,6 +1025,7 @@ class _AddStorePageState extends State<AddStorePage> {
     return _sectionCard(
       icon: Icons.storefront_outlined,
       title: 'Store Information',
+      step: 'Step 1 of 3',
       children: [
         _fieldLabel('Store Name', required: true, top: 14),
         _field(
@@ -1063,9 +1074,9 @@ class _AddStorePageState extends State<AddStorePage> {
               Text(
                 'Google Maps link',
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: _ink,
+                  color: _grey,
                 ),
               ),
               const SizedBox(width: 6),
@@ -1162,6 +1173,7 @@ class _AddStorePageState extends State<AddStorePage> {
     return _sectionCard(
       icon: Icons.place_outlined,
       title: 'Business Location',
+      step: 'Step 2 of 3',
       required: true,
       caption: 'Tap the map to drop a pin, or paste a Google Maps link.',
       children: [
@@ -1202,70 +1214,61 @@ class _AddStorePageState extends State<AddStorePage> {
     required VoidCallback onRemove,
     required List<Widget> children,
   }) {
-    return Container(
+    return TweenAnimationBuilder<double>(
       key: key,
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
-      decoration: BoxDecoration(
-        color: _bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border.withValues(alpha: 0.7)),
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      builder: (context, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(offset: Offset(0, (1 - v) * 14), child: child),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 36,
-            child: Row(
-              children: [
-                Container(
-                  width: 26,
-                  height: 26,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: _green,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '$number',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    title,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _ink,
-                    ),
-                  ),
-                ),
-                if (canRemove)
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: onRemove,
-                    child: Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: Icon(
-                        Icons.delete_outline,
-                        size: 20,
-                        color: Colors.red.shade400,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 18),
+        padding: const EdgeInsets.only(top: 12),
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: _border.withValues(alpha: 0.7)),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 32,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: _green,
                       ),
                     ),
                   ),
-              ],
+                  if (canRemove)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onRemove,
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(
+                          Icons.close,
+                          size: 20,
+                          color: Colors.red.shade400,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          ...children,
-        ],
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -1282,21 +1285,45 @@ class _AddStorePageState extends State<AddStorePage> {
       canRemove: _entryCount > 1,
       onRemove: () => _removeAt(i),
       children: [
-        _fieldLabel('$noun name', top: 4),
-        _field(
-          controller: e.name,
-          hint: 'Enter $lower name',
-          fill: Colors.white,
-          validator: (v) => _requiredIfAny(v, group, 'Enter the $lower name'),
-        ),
-        _fieldLabel('Price (IDR)', top: 12),
-        _field(
-          controller: e.price,
-          hint: 'Enter price',
-          fill: Colors.white,
-          keyboardType: TextInputType.number,
-          formatters: [ThousandsSeparatorFormatter()],
-          validator: (v) => _requiredIfAny(v, group, 'Enter the price'),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _fieldLabel('$noun name', top: 2),
+                  _field(
+                    controller: e.name,
+                    hint: 'e.g. $lower name',
+                    dense: true,
+                    validator: (v) =>
+                        _requiredIfAny(v, group, 'Enter the $lower name'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _fieldLabel('Price (IDR)', top: 2),
+                  _field(
+                    controller: e.price,
+                    hint: '0',
+                    dense: true,
+                    keyboardType: TextInputType.number,
+                    formatters: [ThousandsSeparatorFormatter()],
+                    validator: (v) =>
+                        _requiredIfAny(v, group, 'Enter the price'),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1362,21 +1389,21 @@ class _AddStorePageState extends State<AddStorePage> {
         onTap: onTap,
         child: Container(
           width: double.infinity,
-          margin: const EdgeInsets.only(top: 14),
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          margin: const EdgeInsets.only(top: 18),
+          padding: const EdgeInsets.symmetric(vertical: 13),
           decoration: BoxDecoration(
+            color: _accent.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _green, width: 1.2),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.add_circle_outline, size: 20, color: _green),
-              const SizedBox(width: 8),
+              const Icon(Icons.add, size: 20, color: _green),
+              const SizedBox(width: 6),
               Text(
                 text,
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w600,
                   color: _green,
                 ),
@@ -1410,6 +1437,7 @@ class _AddStorePageState extends State<AddStorePage> {
     return _sectionCard(
       icon: icon,
       title: title,
+      step: 'Step 3 of 3',
       caption: isExchange
           ? 'Add the currencies you exchange. Empty entries are ignored.'
           : 'Add what you sell. Empty entries are ignored.',
@@ -1426,36 +1454,33 @@ class _AddStorePageState extends State<AddStorePage> {
   Widget _saveButton(String text) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _save,
-      child: Container(
+      onTap: _saving ? null : _save,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
         width: double.infinity,
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(border: Border.all(color: _green, width: 2)),
-        child: Container(
-          height: 64,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: _green,
-            border: Border.all(color: Colors.white, width: 2),
-          ),
-          child: _saving
-              ? const SizedBox(
-                  width: 26,
-                  height: 26,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 3,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  text,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+        height: 54,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: _saving ? _green.withValues(alpha: 0.7) : _green,
+          borderRadius: BorderRadius.circular(14),
         ),
+        child: _saving
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
+            : Text(
+                text,
+                style: GoogleFonts.poppins(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
       ),
     );
   }
