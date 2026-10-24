@@ -3,7 +3,7 @@ import 'package:uuid/uuid.dart';
 class UserProfile {
   new(this.username);
 
-  String userId = Uuid().v4(); 
+  String userId = Uuid().v4();
   String username = "";
   String email = "";
   String avatarUrl = "";

@@ -89,4 +89,3 @@ class GameStatus extends StatelessWidget {
     );
   }
 }
-

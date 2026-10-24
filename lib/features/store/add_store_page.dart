@@ -910,9 +910,7 @@ class _AddStorePageState extends State<AddStorePage> {
       margin: const EdgeInsets.only(top: 28),
       padding: const EdgeInsets.only(top: 24),
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: _border.withValues(alpha: 0.6)),
-        ),
+        border: Border(top: BorderSide(color: _border.withValues(alpha: 0.6))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1221,7 +1219,10 @@ class _AddStorePageState extends State<AddStorePage> {
       curve: Curves.easeOutCubic,
       builder: (context, v, child) => Opacity(
         opacity: v,
-        child: Transform.translate(offset: Offset(0, (1 - v) * 14), child: child),
+        child: Transform.translate(
+          offset: Offset(0, (1 - v) * 14),
+          child: child,
+        ),
       ),
       child: Container(
         width: double.infinity,

@@ -108,7 +108,9 @@ class _BlankPageState extends State<BlankPage> {
               Container(
                 padding: const EdgeInsets.only(bottom: 2),
                 decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
+                  border: Border(
+                    bottom: BorderSide(color: _accent, width: 1.5),
+                  ),
                 ),
                 child: Text(
                   'Content Area',
@@ -127,7 +129,11 @@ class _BlankPageState extends State<BlankPage> {
           Center(
             child: Column(
               children: [
-                Icon(Icons.add_circle_outline, size: 48, color: _grey.withValues(alpha: 0.5)),
+                Icon(
+                  Icons.add_circle_outline,
+                  size: 48,
+                  color: _grey.withValues(alpha: 0.5),
+                ),
                 const SizedBox(height: 12),
                 Text(
                   'Replace this card with your content',

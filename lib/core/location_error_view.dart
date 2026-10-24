@@ -25,11 +25,7 @@ class LocationErrorView extends StatelessWidget {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(
-            fontSize: 12.5,
-            color: _grey,
-            height: 1.4,
-          ),
+          style: GoogleFonts.poppins(fontSize: 12.5, color: _grey, height: 1.4),
         ),
         TextButton(
           onPressed: onRetry,
