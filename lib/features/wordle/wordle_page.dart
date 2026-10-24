@@ -2,13 +2,16 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/wordle/service/lying_down_detector.dart';
 import 'package:sekitaran/features/wordle/vo/char_result.dart';
 import 'package:sekitaran/features/wordle/vo/green_char.dart';
 import 'package:sekitaran/features/wordle/vo/wordle_guess_result.dart';
 import 'package:sekitaran/features/wordle/vo/yellow_char.dart';
-import 'package:sekitaran/features/wordle/widget/game_status.dart';
+import 'package:sekitaran/features/wordle/widget/game_status.dart'
+    show GameStatus;
 import 'package:sekitaran/features/wordle/widget/letter_tile.dart'
     show TileState, WordleColors;
+import 'package:sekitaran/features/wordle/widget/lying_down_overlay.dart';
 import 'package:sekitaran/features/wordle/widget/wordle_board.dart';
 import 'package:sekitaran/features/wordle/widget/wordle_keyboard.dart';
 import 'package:sekitaran/features/wordle/wordle_instance.dart';
@@ -73,10 +76,27 @@ class _WordlePageState extends State<WordlePage> {
   String _current = ''; // huruf yang sedang diketik
   String? _error;
 
+  LyingDownDetector? _detector;
+  bool _isLyingDown = false;
+
   @override
   void initState() {
     super.initState();
     _initGame();
+    _detector = LyingDownDetector(
+      onLyingDownChanged: (lyingDown) {
+        if (mounted) {
+          setState(() => _isLyingDown = lyingDown);
+        }
+      },
+    );
+    _detector!.startListening();
+  }
+
+  @override
+  void dispose() {
+    _detector?.dispose();
+    super.dispose();
   }
 
   void _initGame() {
@@ -179,76 +199,86 @@ class _WordlePageState extends State<WordlePage> {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
-            child: Column(
+            child: Stack(
               children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        IconButton(
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          padding: EdgeInsets.zero,
-                          alignment: Alignment.centerLeft,
-                          constraints: const BoxConstraints(
-                            minWidth: 40,
-                            minHeight: 40,
-                          ),
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new,
-                            size: 20,
-                            color: WordleColors.correct,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _title(),
-                              const SizedBox(height: 10),
-                              _subtitle(),
-                              const SizedBox(height: 12),
-                              _legend(),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        WordleBoard(
-                          history: _lastResult?.history ?? [],
-                          currentGuess: _current,
-                          maxGuesses: _maxTries,
-                          wordLength: _wordLength,
-                        ),
-                        SizedBox(
-                          height: 28,
-                          child: Center(
-                            child: Text(
-                              _error ?? '',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: Colors.red.shade700,
+                Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            IconButton(
+                              onPressed: () => Navigator.of(context).maybePop(),
+                              padding: EdgeInsets.zero,
+                              alignment: Alignment.centerLeft,
+                              constraints: const BoxConstraints(
+                                minWidth: 40,
+                                minHeight: 40,
+                              ),
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new,
+                                size: 20,
+                                color: WordleColors.correct,
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 12),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _title(),
+                                  const SizedBox(height: 10),
+                                  _subtitle(),
+                                  const SizedBox(height: 12),
+                                  _legend(),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            WordleBoard(
+                              history: _lastResult?.history ?? [],
+                              currentGuess: _current,
+                              maxGuesses: _maxTries,
+                              wordLength: _wordLength,
+                            ),
+                            SizedBox(
+                              height: 28,
+                              child: Center(
+                                child: Text(
+                                  _error ?? '',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: Colors.red.shade700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            _gameStatus(),
+                          ],
                         ),
-                        _gameStatus(),
-                      ],
+                      ),
                     ),
-                  ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                      child: WordleKeyboard(
+                        onLetter: _onLetter,
+                        onEnter: _onEnter,
+                        onBackspace: _onBackspace,
+                        keyStates: _keyStates(),
+                        enabled: !_isGameOver,
+                      ),
+                    ),
+                  ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                  child: WordleKeyboard(
-                    onLetter: _onLetter,
-                    onEnter: _onEnter,
-                    onBackspace: _onBackspace,
-                    keyStates: _keyStates(),
-                    enabled: !_isGameOver,
+                if (_isLyingDown)
+                  LyingDownOverlay(
+                    onDismiss: () {
+                      _detector?.resetOrientation();
+                    },
                   ),
-                ),
               ],
             ),
           ),
