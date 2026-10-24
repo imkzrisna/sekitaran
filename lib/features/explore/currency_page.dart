@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/home/user_radial_menu.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,9 +12,7 @@ import 'package:sekitaran/core/location_error_view.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
-import 'package:sekitaran/features/chat/global_chat_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
-import 'package:sekitaran/features/profile/profile_page.dart';
 
 class _Rate {
   const _Rate(this.code, this.foreign, this.idr, this.fee);
@@ -840,18 +839,7 @@ class _CurrencyPageState extends State<CurrencyPage>
             ),
           ),
         ),
-        RadialNavMenu.regular(
-          current: RadialNavItem.currency,
-          onHome: () => Navigator.of(context).pop(),
-          onProfile: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const ProfilePage(isRegularUser: true),
-            ),
-          ),
-          onChat: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const GlobalChatPage())),
-          onCurrency: () {},
-        ),
+        const UserRadialMenu(current: RadialNavItem.currency),
       ],
     );
   }

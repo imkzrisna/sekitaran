@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/home/user_radial_menu.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,11 +10,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/indonesia_geo.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
-import 'package:sekitaran/features/explore/currency_page.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
-import 'package:sekitaran/features/chat/global_chat_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
-import 'package:sekitaran/features/profile/profile_page.dart';
 
 class RegularHomePage extends StatefulWidget {
   const RegularHomePage({super.key});
@@ -490,8 +488,9 @@ class _RegularHomePageState extends State<RegularHomePage>
     }
     if (_shopsError != null) return _hint(_shopsError!);
     final items = _nearest(here);
-    if (items.isEmpty)
+    if (items.isEmpty) {
       return _hint('No shops within 5 km for this category yet.');
+    }
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
       child: Column(
@@ -559,19 +558,7 @@ class _RegularHomePageState extends State<RegularHomePage>
             ),
           ),
         ),
-        RadialNavMenu.regular(
-          current: RadialNavItem.home,
-          onHome: () {}, // sudah berada di halaman ini
-          onProfile: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const ProfilePage(isRegularUser: true),
-            ),
-          ),
-          onChat: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const GlobalChatPage())),
-          onCurrency: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const CurrencyPage())),
-        ),
+        const UserRadialMenu(current: RadialNavItem.home),
       ],
     );
   }
