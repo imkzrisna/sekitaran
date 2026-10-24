@@ -293,6 +293,58 @@ class _CurrencyPageState extends State<CurrencyPage>
 
   // ---------- UI ----------
 
+  Widget _title() {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Text(
+            'Currency',
+            maxLines: 1,
+            softWrap: false,
+            style: GoogleFonts.poppins(
+              fontSize: 26,
+              fontWeight: FontWeight.w600,
+              color: _green,
+            ),
+          ),
+          Positioned(
+            top: -14,
+            right: -22,
+            child: Text(
+              '*',
+              style: GoogleFonts.poppins(
+                fontSize: 44,
+                fontWeight: FontWeight.w500,
+                color: _green,
+                height: 1,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _subtitle() {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 3),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
+      ),
+      child: Text(
+        'Compare rates from money changers near you',
+        style: GoogleFonts.poppins(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: _ink,
+        ),
+      ),
+    );
+  }
+
   Widget _heading(String text, IconData icon) => Padding(
     padding: const EdgeInsets.only(top: 32, bottom: 12),
     child: Row(
@@ -464,42 +516,57 @@ class _CurrencyPageState extends State<CurrencyPage>
     if (_code != null && entries.isEmpty) {
       sub = 'No money changer lists $_code yet.';
     } else if (amt != null && entries.isNotEmpty) {
-      _Entry best = entries.first;
-      for (final e in entries) {
-        if (e.rate.perUnit > best.rate.perUnit) best = e;
-      }
+      final best = _best(entries);
       big = _idr(amt * best.rate.perUnit);
       sub = 'Best rate at ${best.changer.shop.name}';
     }
+    final amtText = _amount.text.trim().isEmpty ? '-' : _amount.text.trim();
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(top: 22),
+      padding: const EdgeInsets.only(top: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border.withValues(alpha: 0.7)),
+        border: Border(
+          top: BorderSide(color: _border.withValues(alpha: 0.6)),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${_amount.text.trim().isEmpty ? '-' : _amount.text.trim()} '
-            '${_code ?? ''} =',
+            '$amtText ${_code ?? ''} =',
             style: GoogleFonts.poppins(fontSize: 13, color: _grey),
           ),
-          const SizedBox(height: 4),
-          Text(
-            big,
-            style: GoogleFonts.poppins(
-              fontSize: 30,
-              fontWeight: FontWeight.w600,
-              color: _green,
+          const SizedBox(height: 2),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: FittedBox(
+              key: ValueKey(big),
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                big,
+                style: GoogleFonts.poppins(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w600,
+                  color: _green,
+                ),
+              ),
             ),
           ),
-          Text(sub, style: GoogleFonts.poppins(fontSize: 12, color: _grey)),
+          const SizedBox(height: 2),
+          Text(sub, style: GoogleFonts.poppins(fontSize: 12.5, color: _grey)),
         ],
       ),
     );
+  }
+
+  _Entry _best(List<_Entry> entries) {
+    var best = entries.first;
+    for (final e in entries) {
+      if (e.rate.perUnit > best.rate.perUnit) best = e;
+    }
+    return best;
   }
 
   Widget _locateButton() {
@@ -541,7 +608,7 @@ class _CurrencyPageState extends State<CurrencyPage>
       height: 240,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _border.withValues(alpha: 0.7)),
       ),
       child: Stack(
@@ -634,53 +701,74 @@ class _CurrencyPageState extends State<CurrencyPage>
     ),
   );
 
-  Widget _card(_Entry e, LatLng here) {
+  Widget _card(_Entry e, LatLng here, {required bool best}) {
     final amt = _amountValue;
     final fee = e.rate.fee;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => RouteMapPage(origin: here, shop: e.changer.shop),
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('${e.changer.shop.id}_$_code'),
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      builder: (context, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, (1 - v) * 12),
+          child: child,
         ),
       ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _border.withValues(alpha: 0.7)),
+      child: _Press(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => RouteMapPage(origin: here, shop: e.changer.shop),
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.currency_exchange, size: 20, color: _green),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    e.changer.shop.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                      color: _ink,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: _border.withValues(alpha: 0.6)),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      e.changer.shop.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: _ink,
+                      ),
                     ),
                   ),
-                ),
-                const Icon(Icons.chevron_right, size: 22, color: _grey),
-              ],
-            ),
-            const SizedBox(height: 6),
-            _line('Distance', formatDistance(e.meters)),
-            _line('Rate', '1 $_code = ${_idr(e.rate.perUnit)}'),
-            if (fee != null) _line('Service fee', _idr(fee)),
-            if (amt != null)
-              _line('You get', _idr(amt * e.rate.perUnit), bold: true),
-          ],
+                  if (best) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      'Best rate',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: _green,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right, size: 22, color: _grey),
+                ],
+              ),
+              const SizedBox(height: 4),
+              _line('Distance', formatDistance(e.meters)),
+              _line('Rate', '1 $_code = ${_idr(e.rate.perUnit)}'),
+              if (fee != null) _line('Service fee', _idr(fee)),
+              if (amt != null)
+                _line('You get', _idr(amt * e.rate.perUnit), bold: true),
+            ],
+          ),
         ),
       ),
     );
@@ -715,7 +803,8 @@ class _CurrencyPageState extends State<CurrencyPage>
         if (entries.isEmpty)
           _hint('No money changer offers this currency yet.')
         else
-          for (final e in entries) _card(e, here),
+          for (final e in entries)
+            _card(e, here, best: entries.length > 1 && e == _best(entries)),
       ],
     );
   }
@@ -739,14 +828,9 @@ class _CurrencyPageState extends State<CurrencyPage>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Currency',
-                        style: GoogleFonts.poppins(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w600,
-                          color: _green,
-                        ),
-                      ),
+                      _title(),
+                      const SizedBox(height: 14),
+                      _subtitle(),
                       _heading('Convert to Rupiah', Icons.currency_exchange),
                       _input(),
                       const SizedBox(height: 14),
@@ -771,6 +855,42 @@ class _CurrencyPageState extends State<CurrencyPage>
           onCurrency: () {},
         ),
       ],
+    );
+  }
+}
+
+/// Efek tekan halus: mengecil sedikit saat disentuh.
+class _Press extends StatefulWidget {
+  const _Press({required this.child, required this.onTap});
+
+  final Widget child;
+  final VoidCallback onTap;
+
+  @override
+  State<_Press> createState() => _PressState();
+}
+
+class _PressState extends State<_Press> {
+  bool _down = false;
+
+  void _set(bool v) {
+    if (_down != v) setState(() => _down = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _set(true),
+      onTapUp: (_) => _set(false),
+      onTapCancel: () => _set(false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _down ? 0.98 : 1,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
     );
   }
 }
