@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
-import 'package:sekitaran/features/profile/profile_page.dart';
+import 'package:sekitaran/features/home/user_radial_menu.dart';
 
 /// Halaman Global Chat. Sengaja kosong; isinya menyusul.
 class GlobalChatPage extends StatelessWidget {
@@ -10,23 +10,11 @@ class GlobalChatPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return const Stack(
       fit: StackFit.expand,
       children: [
-        const Scaffold(backgroundColor: _bg, body: SizedBox.expand()),
-        RadialNavMenu.regular(
-          current: RadialNavItem.chat,
-          onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
-          onProfile: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const ProfilePage(isRegularUser: true),
-            ),
-          ),
-          onChat: () {}, // sudah berada di halaman ini
-          onCurrency: () => ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(const SnackBar(content: Text('Coming soon'))),
-        ),
+        Scaffold(backgroundColor: _bg, body: SizedBox.expand()),
+        UserRadialMenu(current: RadialNavItem.chat),
       ],
     );
   }
