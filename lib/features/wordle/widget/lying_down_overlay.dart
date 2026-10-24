@@ -14,87 +14,87 @@ class LyingDownOverlay extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Animated phone icon
+                    const _LyingPhoneIcon(),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Mohon duduk untuk main game ini',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF252525),
+                        height: 1.3,
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Animated phone icon
-                      const _LyingPhoneIcon(),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Please Sit Up to Play',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF252525),
-                          height: 1.3,
-                        ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Jangan main game ini sambil rebahan ya!',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        color: Colors.grey.shade600,
+                        height: 1.5,
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Jangan main game ini sambil rebahan ya!',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          color: Colors.grey.shade600,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      if (onDismiss != null)
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: onDismiss,
-                            icon: const Icon(Icons.check_circle, size: 20),
-                            label: const Text(
-                              'I\'m Sitting Up',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                    ),
+                    const SizedBox(height: 24),
+                    if (onDismiss != null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: onDismiss,
+                          icon: const Icon(Icons.check_circle, size: 20),
+                          label: const Text(
+                            'Aku sudah duduk',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
                             ),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFF103D17),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF103D17),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  'The game will resume automatically when you sit up.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.7),
-                  ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'game ini akan kembali secara otomatis setelah kamu duduk',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 }
@@ -161,4 +161,3 @@ class _LyingPhoneIconState extends State<_LyingPhoneIcon>
     );
   }
 }
-

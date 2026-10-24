@@ -43,25 +43,26 @@ class LyingDownDetector {
     _roll = 0;
     _lastTimestamp = null;
 
-    print('[GyroDetector] Starting gyroscope stream...');
+    if (debugLogging) print('[GyroDetector] Starting gyroscope stream...');
     _subscription =
         gyroscopeEventStream(samplingPeriod: const Duration(milliseconds: 50))
             .listen(
               _onGyroscopeEvent,
               onError: (error) {
-                print('[GyroDetector] Stream ERROR: $error');
+                if (debugLogging) print('[GyroDetector] Stream ERROR: $error');
                 stopListening();
               },
               onDone: () {
-                print('[GyroDetector] Stream DONE (closed)');
+                if (debugLogging) print('[GyroDetector] Stream DONE (closed)');
                 stopListening();
               },
               cancelOnError: true,
             );
 
-    print(
-      '[GyroDetector] Stream subscription created: ${_subscription != null}',
-    );
+    if (debugLogging)
+      print(
+        '[GyroDetector] Stream subscription created: ${_subscription != null}',
+      );
     if (debugLogging)
       print('[GyroDetector] Started listening (gyroscope-only)');
   }
@@ -77,9 +78,11 @@ class LyingDownDetector {
   }
 
   void _onGyroscopeEvent(GyroscopeEvent event) {
-    print(
-      '[GyroDetector] _onGyroscopeEvent called: x=${event.x.toStringAsFixed(2)}, y=${event.y.toStringAsFixed(2)}, z=${event.z.toStringAsFixed(2)}',
-    );
+    if (debugLogging) {
+      print(
+        '[GyroDetector] _onGyroscopeEvent called: x=${event.x.toStringAsFixed(2)}, y=${event.y.toStringAsFixed(2)}, z=${event.z.toStringAsFixed(2)}',
+      );
+    }
     final now = DateTime.now();
 
     if (_lastTimestamp != null) {
@@ -120,9 +123,11 @@ class LyingDownDetector {
     final currentlyLyingDown =
         _pitch.abs() > _lyingThreshold || _roll.abs() > _lyingThreshold;
 
-    print(
-      '[GyroDetector] currentlyLyingDown=$currentlyLyingDown (pitch=${_pitch.toStringAsFixed(2)}, roll=${_roll.toStringAsFixed(2)}, threshold=$_lyingThreshold)',
-    );
+    if (debugLogging) {
+      print(
+        '[GyroDetector] currentlyLyingDown=$currentlyLyingDown (pitch=${_pitch.toStringAsFixed(2)}, roll=${_roll.toStringAsFixed(2)}, threshold=$_lyingThreshold)',
+      );
+    }
 
     // Console logging for every event
     if (debugLogging) {
@@ -141,9 +146,11 @@ class LyingDownDetector {
   void _debounceStateChange(bool currentlyLyingDown) {
     // If already debouncing toward this same target, do nothing
     if (_debounceTarget == currentlyLyingDown) {
-      print(
-        '[GyroDetector] Already debouncing toward $currentlyLyingDown, ignoring',
-      );
+      if (debugLogging) {
+        print(
+          '[GyroDetector] Already debouncing toward $currentlyLyingDown, ignoring',
+        );
+      }
       return;
     }
 
@@ -151,23 +158,29 @@ class LyingDownDetector {
     if (currentlyLyingDown == _isLyingDown) {
       _debounceTimer?.cancel();
       _debounceTarget = null;
-      print(
-        '[GyroDetector] No state change needed: currentlyLyingDown=$currentlyLyingDown == _isLyingDown=$_isLyingDown',
-      );
+      if (debugLogging) {
+        print(
+          '[GyroDetector] No state change needed: currentlyLyingDown=$currentlyLyingDown == _isLyingDown=$_isLyingDown',
+        );
+      }
       return;
     }
 
     _debounceTimer?.cancel();
     _debounceTarget = currentlyLyingDown;
-    print(
-      '[GyroDetector] Debounce started: currentlyLyingDown=$currentlyLyingDown, _isLyingDown=$_isLyingDown, waiting ${_debounceDuration.inSeconds}s...',
-    );
+    if (debugLogging) {
+      print(
+        '[GyroDetector] Debounce started: currentlyLyingDown=$currentlyLyingDown, _isLyingDown=$_isLyingDown, waiting ${_debounceDuration.inSeconds}s...',
+      );
+    }
     _debounceTimer = Timer(_debounceDuration, () {
       _isLyingDown = currentlyLyingDown;
       _debounceTarget = null;
-      print(
-        '[GyroDetector] STATE CHANGED: lyingDown=$_isLyingDown (callback will fire)',
-      );
+      if (debugLogging) {
+        print(
+          '[GyroDetector] STATE CHANGED: lyingDown=$_isLyingDown (callback will fire)',
+        );
+      }
       onLyingDownChanged(_isLyingDown);
     });
   }
