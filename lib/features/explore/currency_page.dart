@@ -11,6 +11,7 @@ import 'package:sekitaran/core/location_error_view.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
+import 'package:sekitaran/features/chat/global_chat_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/profile/profile_page.dart';
 
@@ -250,12 +251,10 @@ class _CurrencyPageState extends State<CurrencyPage>
   // ---------- Logika ----------
 
   /// Mata uang yang benar-benar dijual oleh minimal satu toko.
-  List<String> get _codes =>
-      ({
-        for (final c in _changers)
-          for (final r in c.rates) r.code,
-      }.toList()
-        ..sort());
+  List<String> get _codes => ({
+    for (final c in _changers)
+      for (final r in c.rates) r.code,
+  }.toList()..sort());
 
   double? get _amountValue {
     final v = double.tryParse(_amount.text.trim().replaceAll(',', '.'));
@@ -526,9 +525,7 @@ class _CurrencyPageState extends State<CurrencyPage>
       margin: const EdgeInsets.only(top: 22),
       padding: const EdgeInsets.only(top: 20),
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: _border.withValues(alpha: 0.6)),
-        ),
+        border: Border(top: BorderSide(color: _border.withValues(alpha: 0.6))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -851,7 +848,8 @@ class _CurrencyPageState extends State<CurrencyPage>
               builder: (_) => const ProfilePage(isRegularUser: true),
             ),
           ),
-          onExplore: () {},
+          onChat: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const GlobalChatPage())),
           onCurrency: () {},
         ),
       ],
