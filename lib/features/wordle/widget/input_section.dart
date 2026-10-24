@@ -86,29 +86,27 @@ class _InputSectionState extends State<InputSection> {
         SizedBox(
           width: double.infinity,
           height: 50,
-          child: Expanded(
-            child: InkWell(
-              onTap: widget.enabled ? _submitGuess : null,
+          child: InkWell(
+            onTap: widget.enabled ? _submitGuess : null,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                border: Border.all(color: _green, width: 2),
+              ),
               child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(4),
+                height: 76,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  border: Border.all(color: _green, width: 2),
+                  color: _green,
+                  border: Border.all(color: Colors.white, width: 2),
                 ),
-                child: Container(
-                  height: 76,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: _green,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: Text(
-                    'Tebak',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
+                child: Text(
+                  'Tebak',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
               ),

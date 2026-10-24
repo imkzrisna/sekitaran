@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/wordle/widget/game_status.dart';
 import 'package:sekitaran/features/wordle/widget/input_section.dart';
+import 'package:sekitaran/features/wordle/widget/lying_down_overlay.dart';
 import 'package:sekitaran/features/wordle/widget/wordle_board.dart';
+import 'package:sekitaran/features/wordle/service/lying_down_detector.dart';
 import 'package:sekitaran/features/wordle/wordle_instance.dart';
 import 'package:sekitaran/features/wordle/wordle_status.dart';
 import 'package:sekitaran/features/wordle/vo/wordle_guess_result.dart';
@@ -44,13 +46,23 @@ class _WordlePageState extends State<WordlePage> {
   ];
 
   late final WordleInstance _instance;
+  late final LyingDownDetector _lyingDownDetector;
   WordleGuessResult? _lastResult;
   bool _isGameOver = false;
+  bool _isLyingDown = false;
 
   @override
   void initState() {
     super.initState();
     _initGame();
+    _initLyingDownDetector();
+  }
+
+  @override
+  void dispose() {
+    print('[WordlePage] dispose() called');
+    _lyingDownDetector.dispose();
+    super.dispose();
   }
 
   void _initGame() {
@@ -59,6 +71,26 @@ class _WordlePageState extends State<WordlePage> {
     _instance = WordleInstance().setCorrectWord(chosenWord);
     _lastResult = null;
     _isGameOver = false;
+  }
+
+  void _initLyingDownDetector() {
+    print('[WordlePage] Creating new LyingDownDetector');
+    _lyingDownDetector = LyingDownDetector(
+      onLyingDownChanged: _onLyingDownChanged,
+    );
+    _lyingDownDetector.startListening();
+  }
+
+  void _onLyingDownChanged(bool isLyingDown) {
+    print('[WordlePage] Callback received: isLyingDown=$isLyingDown, mounted=$mounted');
+    if (mounted) {
+      setState(() {
+        _isLyingDown = isLyingDown;
+        print('[WordlePage] State updated to: $_isLyingDown');
+      });
+    } else {
+      print('[WordlePage] SKIPPED - not mounted!');
+    }
   }
 
   void _retryGame() {
@@ -72,7 +104,7 @@ class _WordlePageState extends State<WordlePage> {
   }
 
   void _handleGuess(String word) {
-    if (_isGameOver) return;
+    if (_isGameOver || _isLyingDown) return;
 
     final result = _instance.guess(word.toLowerCase());
     setState(() {
@@ -83,34 +115,48 @@ class _WordlePageState extends State<WordlePage> {
     });
   }
 
+  void _onLyingDownDismissed() {
+    // User confirmed they're sitting up - reset orientation
+    _lyingDownDetector.resetOrientation();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(28, 56, 28, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _title(),
-                  const SizedBox(height: 8),
-                  _subtitle(),
-                  const SizedBox(height: 32),
-                  _gameBoard(),
-                  const SizedBox(height: 16),
-                  _gameStatus(),
-                  const SizedBox(height: 16),
-                  _gameInput(),
-                ],
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Game content - centered with max width constraint
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(28, 56, 28, 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_isLyingDown.toString()),
+                      _title(),
+                      const SizedBox(height: 8),
+                      _subtitle(),
+                      const SizedBox(height: 32),
+                      _gameBoard(),
+                      const SizedBox(height: 16),
+                      _gameStatus(),
+                      const SizedBox(height: 16),
+                      _gameInput(),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+          // Lying down overlay - full screen, on top of everything
+          if (_isLyingDown) LyingDownOverlay(onDismiss: _onLyingDownDismissed),
+        ],
       ),
     );
   }
@@ -133,7 +179,10 @@ class _WordlePageState extends State<WordlePage> {
   }
 
   Widget _gameInput() {
-    return InputSection(onGuess: _handleGuess, enabled: !_isGameOver);
+    return InputSection(
+      onGuess: _handleGuess,
+      enabled: !_isGameOver && !_isLyingDown,
+    );
   }
 
   Widget _title() {
