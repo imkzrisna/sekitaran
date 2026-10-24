@@ -2,12 +2,17 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/wordle/vo/char_result.dart';
+import 'package:sekitaran/features/wordle/vo/green_char.dart';
+import 'package:sekitaran/features/wordle/vo/wordle_guess_result.dart';
+import 'package:sekitaran/features/wordle/vo/yellow_char.dart';
 import 'package:sekitaran/features/wordle/widget/game_status.dart';
-import 'package:sekitaran/features/wordle/widget/input_section.dart';
+import 'package:sekitaran/features/wordle/widget/letter_tile.dart'
+    show TileState, WordleColors;
 import 'package:sekitaran/features/wordle/widget/wordle_board.dart';
+import 'package:sekitaran/features/wordle/widget/wordle_keyboard.dart';
 import 'package:sekitaran/features/wordle/wordle_instance.dart';
 import 'package:sekitaran/features/wordle/wordle_status.dart';
-import 'package:sekitaran/features/wordle/vo/wordle_guess_result.dart';
 
 class WordlePage extends StatefulWidget {
   const WordlePage({super.key});
@@ -17,33 +22,58 @@ class WordlePage extends StatefulWidget {
 }
 
 class _WordlePageState extends State<WordlePage> {
-  // Color palette matching the app design system
-  static const _green = Color(0xFF103D17);
-  static const _accent = Color(0xFF5BAA5F);
-  static const _label = Color(0xFF252525);
-  static const _bg = Color(0xFFF2F9F8);
+  static const _maxTries = 6;
+  static const _wordLength = 5;
 
   // Word list for the game
   static const _words = [
+    // Tempat tinggal dan kehidupan anak kos
     'kosan',
-    'kopma',
-    'dosen',
-    'teman',
-    'rindu',
-    'bekal',
-    'kirim',
-    'hemat',
-    'lapar',
-    'murah',
     'kamar',
-    'pulau',
-    'nasib',
-    'mandi',
+    'sewa',
+    'papan', // Tempat tinggal
+    // Tempat dan usaha di sekitar
+    'pasar',
+    'halte',
+    'taman',
+    'dekat',
+    'lokal',
+
+    // Belanja dan kebutuhan sehari-hari
+    'nyari',
+    'bayar',
+    'harga',
+    'murah',
+    'mahal',
+    'hemat',
+    'belan', // Tidak valid: bukan kata utuh
+    'jajan',
+    // Makanan dan kebutuhan anak kos
+    'lapar',
+    'bakso',
+    'beras',
+    'sikat',
+    'sabun',
+    'galon',
+    'masak',
+    'makan',
+    'bekal',
+    // Kehidupan perantau dan lingkungan
+    'teman',
+    'warga',
+    'rindu',
+    'salam',
+    'bantu',
+    'dekat',
+    'jalan',
   ];
 
   late final WordleInstance _instance;
   WordleGuessResult? _lastResult;
   bool _isGameOver = false;
+
+  String _current = ''; // huruf yang sedang diketik
+  String? _error;
 
   @override
   void initState() {
@@ -66,6 +96,8 @@ class _WordlePageState extends State<WordlePage> {
     setState(() {
       _lastResult = null;
       _isGameOver = false;
+      _current = '';
+      _error = null;
     });
   }
 
@@ -81,31 +113,145 @@ class _WordlePageState extends State<WordlePage> {
     });
   }
 
+  // ---------- Keyboard ----------
+
+  void _onLetter(String ch) {
+    if (_isGameOver || _current.length >= _wordLength) return;
+    setState(() {
+      _current += ch;
+      _error = null;
+    });
+  }
+
+  void _onBackspace() {
+    if (_isGameOver || _current.isEmpty) return;
+    setState(() {
+      _current = _current.substring(0, _current.length - 1);
+      _error = null;
+    });
+  }
+
+  void _onEnter() {
+    if (_isGameOver) return;
+    if (_current.length != _wordLength) {
+      setState(() => _error = 'Masukkan $_wordLength huruf');
+      return;
+    }
+    final word = _current;
+    setState(() {
+      _current = '';
+      _error = null;
+    });
+    _handleGuess(word);
+  }
+
+  /// Status terbaik tiap huruf dari semua tebakan (tepat > salah posisi > tidak ada).
+  Map<String, TileState> _keyStates() {
+    int rank(TileState s) => switch (s) {
+      TileState.correct => 3,
+      TileState.present => 2,
+      TileState.absent => 1,
+      TileState.empty => 0,
+    };
+    final map = <String, TileState>{};
+    final history = _lastResult?.history ?? const <List<CharResult>>[];
+    for (final row in history) {
+      for (final r in row) {
+        final key = r.char.toUpperCase();
+        final s = r is GreenChar
+            ? TileState.correct
+            : r is YellowChar
+            ? TileState.present
+            : TileState.absent;
+        final old = map[key];
+        if (old == null || rank(s) > rank(old)) map[key] = s;
+      }
+    }
+    return map;
+  }
+
+  // ---------- UI ----------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: WordleColors.bg,
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(28, 56, 28, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _title(),
-                  const SizedBox(height: 8),
-                  _subtitle(),
-                  const SizedBox(height: 32),
-                  _gameBoard(),
-                  const SizedBox(height: 16),
-                  _gameStatus(),
-                  const SizedBox(height: 16),
-                  _gameInput(),
-                ],
-              ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          padding: EdgeInsets.zero,
+                          alignment: Alignment.centerLeft,
+                          constraints: const BoxConstraints(
+                            minWidth: 40,
+                            minHeight: 40,
+                          ),
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new,
+                            size: 20,
+                            color: WordleColors.correct,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _title(),
+                              const SizedBox(height: 10),
+                              _subtitle(),
+                              const SizedBox(height: 12),
+                              _legend(),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        WordleBoard(
+                          history: _lastResult?.history ?? [],
+                          currentGuess: _current,
+                          maxGuesses: _maxTries,
+                          wordLength: _wordLength,
+                        ),
+                        SizedBox(
+                          height: 28,
+                          child: Center(
+                            child: Text(
+                              _error ?? '',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                          ),
+                        ),
+                        _gameStatus(),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  child: WordleKeyboard(
+                    onLetter: _onLetter,
+                    onEnter: _onEnter,
+                    onBackspace: _onBackspace,
+                    keyStates: _keyStates(),
+                    enabled: !_isGameOver,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -113,25 +259,22 @@ class _WordlePageState extends State<WordlePage> {
     );
   }
 
-  Widget _gameBoard() {
-    return WordleBoard(history: _lastResult?.history ?? []);
-  }
-
   Widget _gameStatus() {
+    final used = _lastResult?.history.length ?? 0;
     if (_lastResult == null) {
-      return GameStatus(status: WordleStatus.incorrect);
+      return const GameStatus(
+        status: WordleStatus.incorrect,
+        triesLeft: _maxTries,
+      );
     }
     return GameStatus(
       status: _lastResult!.status,
+      triesLeft: _maxTries - used,
       correctWord: _isGameOver && _lastResult!.status == WordleStatus.outOfTries
           ? _instance.correctWord
           : null,
       onRetry: _isGameOver ? _retryGame : null,
     );
-  }
-
-  Widget _gameInput() {
-    return InputSection(onGuess: _handleGuess, enabled: !_isGameOver);
   }
 
   Widget _title() {
@@ -143,7 +286,7 @@ class _WordlePageState extends State<WordlePage> {
           style: GoogleFonts.poppins(
             fontSize: 26,
             fontWeight: FontWeight.w600,
-            color: _green,
+            color: WordleColors.correct,
           ),
         ),
         Positioned(
@@ -154,7 +297,7 @@ class _WordlePageState extends State<WordlePage> {
             style: GoogleFonts.poppins(
               fontSize: 44,
               fontWeight: FontWeight.w500,
-              color: _green,
+              color: WordleColors.correct,
               height: 1,
             ),
           ),
@@ -167,16 +310,48 @@ class _WordlePageState extends State<WordlePage> {
     return Container(
       padding: const EdgeInsets.only(bottom: 3),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
+        border: Border(
+          bottom: BorderSide(color: WordleColors.accent, width: 1.5),
+        ),
       ),
       child: Text(
-        'tebak kata lima huruf dengan batas 6 kali',
+        'Tebak kata lima huruf dengan batas 6 kali',
         style: GoogleFonts.poppins(
           fontSize: 15,
           fontWeight: FontWeight.w500,
-          color: _label,
+          color: WordleColors.ink,
         ),
       ),
+    );
+  }
+
+  Widget _legend() {
+    Widget item(Color c, String label) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: c,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: GoogleFonts.poppins(fontSize: 12, color: WordleColors.grey),
+        ),
+      ],
+    );
+    return Wrap(
+      spacing: 14,
+      runSpacing: 6,
+      children: [
+        item(WordleColors.correct, 'Tepat'),
+        item(WordleColors.present, 'Salah posisi'),
+        item(WordleColors.absent, 'Tidak ada'),
+      ],
     );
   }
 }
