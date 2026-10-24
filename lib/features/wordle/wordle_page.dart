@@ -31,7 +31,6 @@ class _WordlePageState extends State<WordlePage> {
     'kosan',
     'kamar',
     'sewa',
-    'papan', // Tempat tinggal
     // Tempat dan usaha di sekitar
     'pasar',
     'halte',
@@ -46,7 +45,6 @@ class _WordlePageState extends State<WordlePage> {
     'murah',
     'mahal',
     'hemat',
-    'belan', // Tidak valid: bukan kata utuh
     'jajan',
     // Makanan dan kebutuhan anak kos
     'lapar',
