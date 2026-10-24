@@ -22,8 +22,6 @@ class _WordlePageState extends State<WordlePage> {
   static const _accent = Color(0xFF5BAA5F);
   static const _label = Color(0xFF252525);
   static const _bg = Color(0xFFF2F9F8);
-  static const _grey = Color(0xFF7A7A7A);
-  static const _border = Color(0xFFC9C9C9);
 
   // Word list for the game
   static const _words = [
@@ -178,77 +176,6 @@ class _WordlePageState extends State<WordlePage> {
           fontWeight: FontWeight.w500,
           color: _label,
         ),
-      ),
-    );
-  }
-
-  Widget _emptySectionCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border.withValues(alpha: 0.5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.only(bottom: 2),
-                decoration: const BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: _accent, width: 1.5),
-                  ),
-                ),
-                child: Text(
-                  'Content Area',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _label,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.dashboard_outlined, color: _green, size: 22),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.add_circle_outline,
-                  size: 48,
-                  color: _grey.withValues(alpha: 0.5),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Replace this card with your content',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: _grey,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Use _sectionCard() pattern for new sections',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: _grey.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

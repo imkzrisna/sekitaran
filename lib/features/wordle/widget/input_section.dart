@@ -38,7 +38,7 @@ class _InputSectionState extends State<InputSection> {
 
   @override
   Widget build(BuildContext context) {
-    final _green = Color(0xFF103D17);
+    final green = Color(0xFF103D17);
     return Column(
       children: [
         const SizedBox(height: 24),
@@ -93,13 +93,13 @@ class _InputSectionState extends State<InputSection> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  border: Border.all(color: _green, width: 2),
+                  border: Border.all(color: green, width: 2),
                 ),
                 child: Container(
                   height: 76,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: _green,
+                    color: green,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
                   child: Text(
