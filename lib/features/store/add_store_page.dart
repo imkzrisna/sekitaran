@@ -288,6 +288,368 @@ class _AddStorePageState extends State<AddStorePage> {
     return n <= 0 ? 'Must be greater than 0' : null;
   }
 
+  void _showLinkHelp() {
+    FocusScope.of(context).unfocus();
+
+    const plusSteps = <(IconData, String, String)>[
+      (
+        Icons.search,
+        'Buka detail tempat',
+        'Di Google Maps, cari tokomu atau tekan lama di peta, lalu buka '
+            'detail tempatnya.',
+      ),
+      (
+        Icons.apps,
+        'Cari baris Plus Code',
+        'Scroll ke baris dengan ikon titik-titik. Isinya kode seperti '
+            '887R+6Q Triharjo.',
+      ),
+      (
+        Icons.copy,
+        'Salin dan tempel',
+        'Ketuk ikon salin, tempel di kolom Google Maps link, lalu ketuk '
+            'tombol pin hijau.',
+      ),
+    ];
+    const linkSteps = <(IconData, String, String)>[
+      (
+        Icons.touch_app_outlined,
+        'Pilih tempatnya',
+        'Ketuk nama tempat atau pin di bagian bawah layar.',
+      ),
+      (
+        Icons.share_outlined,
+        'Bagikan',
+        'Ketuk Bagikan (Share), lalu pilih Salin link (Copy link).',
+      ),
+      (
+        Icons.content_paste,
+        'Tempel di sini',
+        'Tempel di kolom Google Maps link, lalu ketuk tombol pin hijau.',
+      ),
+    ];
+
+    Widget segment(String text, bool sel, VoidCallback onTap) => Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: sel ? _green : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            text,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+              color: sel ? Colors.white : _ink,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Widget timeline(List<(IconData, String, String)> steps) => Column(
+      children: [
+        for (var k = 0; k < steps.length; k++)
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: 28,
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: _green,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${k + 1}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      if (k < steps.length - 1)
+                        Expanded(
+                          child: Container(
+                            width: 1.5,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            color: _accent,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      bottom: k < steps.length - 1 ? 18 : 0,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          steps[k].$2,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: _ink,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          steps[k].$3,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12.5,
+                            color: _grey,
+                            height: 1.45,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(steps[k].$1, color: _green, size: 22),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    Widget example() => Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _border.withValues(alpha: 0.8)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.apps, color: _green, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Contoh yang disalin',
+                  style: GoogleFonts.poppins(fontSize: 11.5, color: _grey),
+                ),
+                Text(
+                  '887R+6Q Triharjo, Sleman',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: _green,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.copy, color: _grey, size: 18),
+        ],
+      ),
+    );
+
+    Widget tip(IconData icon, String text) => Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: _accent, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.poppins(
+                fontSize: 12.5,
+                color: _grey,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    var tab = 0;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 14, 24, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: _border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(color: _accent, width: 1.5),
+                            ),
+                          ),
+                          child: Text(
+                            'Cara ambil lokasi',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: _ink,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.pin_drop_outlined,
+                        color: _green,
+                        size: 22,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Pilih salah satu cara, lalu ikuti langkahnya.',
+                    style: GoogleFonts.poppins(fontSize: 13, color: _grey),
+                  ),
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _border, width: 1.2),
+                    ),
+                    child: Row(
+                      children: [
+                        segment(
+                          'Plus Code',
+                          tab == 0,
+                          () => setSheet(() => tab = 0),
+                        ),
+                        segment(
+                          'Link tempat',
+                          tab == 1,
+                          () => setSheet(() => tab = 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Column(
+                        key: ValueKey(tab),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          timeline(tab == 0 ? plusSteps : linkSteps),
+                          const SizedBox(height: 18),
+                          if (tab == 0) ...[
+                            example(),
+                            const SizedBox(height: 12),
+                            tip(
+                              Icons.my_location,
+                              'Kode pendek dihitung dekat koordinat yang '
+                              'sudah terisi. Jika kosong, dianggap area '
+                              'Yogyakarta. Untuk kota lain, ketuk peta di '
+                              'sekitar lokasi dulu, atau pakai link.',
+                            ),
+                          ] else
+                            tip(
+                              Icons.lightbulb_outline,
+                              'Pakai link dari pin tempat yang tepat. Link '
+                              'dari tampilan peta biasa hanya mengambil titik '
+                              'tengah layar.',
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  tip(
+                    Icons.flag_outlined,
+                    'Lokasi toko harus berada di Indonesia.',
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      width: double.infinity,
+                      height: 48,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _green,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Mengerti',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _applyMapsLink() async {
     if (_resolvingLink) return;
     final raw = _mapsLink.text.trim();
@@ -693,7 +1055,31 @@ class _AddStorePageState extends State<AddStorePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _fieldLabel('Google Maps link', top: 16),
+        Padding(
+          padding: const EdgeInsets.only(top: 16, bottom: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Google Maps link',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: _ink,
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _showLinkHelp,
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(Icons.help_outline, size: 18, color: _green),
+                ),
+              ),
+            ],
+          ),
+        ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
