@@ -3,6 +3,7 @@ import 'package:sekitaran/features/profile/profile_page.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/core/reveal.dart';
+import 'package:sekitaran/core/indonesia_geo.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/store/currency_picker.dart';
 import 'package:sekitaran/features/store/location_picker_map.dart';
@@ -200,6 +201,12 @@ class _AddStorePageState extends State<AddStorePage> {
     final c = _category;
     setState(() => _categoryError = c == null);
     if (!ok || c == null) return;
+    final lat = double.tryParse(_latitude.text.trim());
+    final lng = double.tryParse(_longitude.text.trim());
+    if (lat == null || lng == null || !isInIndonesiaCoord(lat, lng)) {
+      _snack(kIndonesiaOnlyMessageId);
+      return;
+    }
 
     final items = <Map<String, dynamic>>[];
     final rates = <Map<String, dynamic>>[];
@@ -307,6 +314,13 @@ class _AddStorePageState extends State<AddStorePage> {
         refLng: hasRef ? curLng : 110.3695,
       );
       if (!mounted) return;
+      if (!isInIndonesiaCoord(r.lat, r.lng)) {
+        setState(() {
+          _linkMessageIsError = true;
+          _linkMessage = kIndonesiaOnlyMessageId;
+        });
+        return;
+      }
       _latitude.text = r.lat.toStringAsFixed(6);
       _longitude.text = r.lng.toStringAsFixed(6);
       setState(() {

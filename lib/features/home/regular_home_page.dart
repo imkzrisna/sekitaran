@@ -69,6 +69,9 @@ class _RegularHomePageState extends State<RegularHomePage>
       ..showSnackBar(SnackBar(content: Text(m)));
   }
 
+  bool isInIndonesia(LatLng p) =>
+      isInIndonesiaCoord(p.latitude, p.longitude);
+
   Future<void> _loadShops() async {
     try {
       final shops = await fetchShops();
@@ -113,6 +116,13 @@ class _RegularHomePageState extends State<RegularHomePage>
       );
       if (!mounted) return;
       final here = LatLng(p.latitude, p.longitude);
+      if (!isInIndonesia(here)) {
+        setState(() {
+          _pos = null;
+          _locError = kIndonesiaOnlyMessage;
+        });
+        return;
+      }
       setState(() {
         _pos = here;
       });

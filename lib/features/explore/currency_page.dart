@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sekitaran/core/indonesia_geo.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
@@ -151,12 +152,16 @@ class _CurrencyPageState extends State<CurrencyPage>
     if (perm == LocationPermission.deniedForever) {
       throw 'Location permission is blocked. Enable it in the app settings.';
     }
-    return Geolocator.getCurrentPosition(
+    final p = await Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
         timeLimit: Duration(seconds: 12),
       ),
     );
+    if (!isInIndonesiaCoord(p.latitude, p.longitude)) {
+      throw kIndonesiaOnlyMessage;
+    }
+    return p;
   }
 
   Future<void> _load() async {
