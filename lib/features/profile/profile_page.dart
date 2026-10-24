@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/home/user_radial_menu.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,7 +10,6 @@ import 'package:sekitaran/core/app_confirm_dialog.dart';
 import 'package:sekitaran/features/auth/biometric_service.dart';
 import 'package:sekitaran/features/auth/fingerprint_flow.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
-import 'package:sekitaran/features/chat/global_chat_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/profile/profile_service.dart';
 import 'package:sekitaran/features/store/add_store_page.dart';
@@ -848,15 +848,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         widget.isRegularUser
-            ? RadialNavMenu.regular(
-                current: RadialNavItem.profile,
-                onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
-                onChat: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const GlobalChatPage()),
-                ),
-                onCurrency: () => _snack('Coming soon'),
-                onProfile: () {}, // sudah berada di halaman ini
-              )
+            ? const UserRadialMenu(current: RadialNavItem.profile)
             : RadialNavMenu(
                 current: RadialNavItem.profile,
                 onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
