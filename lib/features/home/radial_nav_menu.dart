@@ -5,8 +5,8 @@ import 'package:flutter/services.dart';
 
 /// Menu yang bisa ditandai sebagai halaman aktif.
 /// profile & home dipakai kedua peran, add & edit khusus Business Owner,
-/// explore & currency khusus Regular User.
-enum RadialNavItem { profile, home, add, edit, explore, currency }
+/// chat & currency khusus Regular User.
+enum RadialNavItem { profile, home, add, edit, chat, currency }
 
 /// Satu ikon di dalam cincin.
 class RadialNavEntry {
@@ -66,7 +66,7 @@ class RadialNavMenu extends StatefulWidget {
     super.key,
     VoidCallback? onProfile,
     VoidCallback? onHome,
-    VoidCallback? onExplore,
+    VoidCallback? onChat,
     VoidCallback? onCurrency,
     this.current,
   }) : entries = [
@@ -83,10 +83,10 @@ class RadialNavMenu extends StatefulWidget {
            onTap: onHome,
          ),
          RadialNavEntry(
-           item: RadialNavItem.explore,
-           icon: Icons.map_outlined,
-           tooltip: 'Explore',
-           onTap: onExplore,
+           item: RadialNavItem.chat,
+           icon: Icons.forum_outlined,
+           tooltip: 'Global Chat',
+           onTap: onChat,
          ),
          RadialNavEntry(
            item: RadialNavItem.currency,
