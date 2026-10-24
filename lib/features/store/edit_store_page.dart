@@ -733,8 +733,9 @@ class _EditStorePageState extends State<EditStorePage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: _accent.withValues(alpha: 0.10),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _border, width: 1.2),
       ),
       child: Row(
         children: [
@@ -958,16 +959,16 @@ class _EditStorePageState extends State<EditStorePage> {
   Widget _addButton(String text, VoidCallback? onTap) {
     return Opacity(
       opacity: onTap == null ? 0.4 : 1,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: _PressScale(
         onTap: onTap,
         child: Container(
           width: double.infinity,
           margin: const EdgeInsets.only(top: 18),
           padding: const EdgeInsets.symmetric(vertical: 13),
           decoration: BoxDecoration(
-            color: _accent.withValues(alpha: 0.14),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _green, width: 1.2),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1023,18 +1024,27 @@ class _EditStorePageState extends State<EditStorePage> {
               style: GoogleFonts.poppins(fontSize: 13, color: _grey),
             ),
           ),
-        if (isExchange)
-          for (var i = 0; i < d.rates.length; i++) _rateCard(d, i)
-        else
-          for (var i = 0; i < d.items.length; i++) _itemCard(d, i),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isExchange)
+                for (var i = 0; i < d.rates.length; i++) _rateCard(d, i)
+              else
+                for (var i = 0; i < d.items.length; i++) _itemCard(d, i),
+            ],
+          ),
+        ),
         _addButton(addLabel, count < _maxEntries ? () => _addEntry(d) : null),
       ],
     );
   }
 
   Widget _saveButton() {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return _PressScale(
       onTap: _saving ? null : _save,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
@@ -1045,30 +1055,34 @@ class _EditStorePageState extends State<EditStorePage> {
           color: _saving ? _green.withValues(alpha: 0.7) : _green,
           borderRadius: BorderRadius.circular(14),
         ),
-        child: _saving
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: Colors.white,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          child: _saving
+              ? const SizedBox(
+                  key: ValueKey('busy'),
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  'Save Changes',
+                  key: const ValueKey('idle'),
+                  style: GoogleFonts.poppins(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
-              )
-            : Text(
-                'Save Changes',
-                style: GoogleFonts.poppins(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
+        ),
       ),
     );
   }
 
   Widget _deleteStoreButton() {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return _PressScale(
       onTap: _deleteStore,
       child: Container(
         width: double.infinity,
@@ -1245,6 +1259,42 @@ class _EditStorePageState extends State<EditStorePage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Efek tekan halus: mengecil sedikit saat disentuh.
+class _PressScale extends StatefulWidget {
+  const _PressScale({required this.child, this.onTap});
+
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  State<_PressScale> createState() => _PressScaleState();
+}
+
+class _PressScaleState extends State<_PressScale> {
+  bool _down = false;
+
+  void _set(bool v) {
+    if (widget.onTap != null && _down != v) setState(() => _down = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _set(true),
+      onTapUp: (_) => _set(false),
+      onTapCancel: () => _set(false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _down ? 0.97 : 1,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+        child: widget.child,
       ),
     );
   }

@@ -1392,8 +1392,9 @@ class _AddStorePageState extends State<AddStorePage> {
           margin: const EdgeInsets.only(top: 18),
           padding: const EdgeInsets.symmetric(vertical: 13),
           decoration: BoxDecoration(
-            color: _accent.withValues(alpha: 0.14),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _green, width: 1.2),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
