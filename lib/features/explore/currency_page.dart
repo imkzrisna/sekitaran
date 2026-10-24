@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/indonesia_geo.dart';
+import 'package:sekitaran/core/location_error_view.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
@@ -694,12 +695,14 @@ class _CurrencyPageState extends State<CurrencyPage>
       );
     }
     if (here == null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _hint(_error ?? 'Turn on location to find money changers.'),
-          TextButton(onPressed: _load, child: const Text('Try again')),
-        ],
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: LocationErrorView(
+            message: _error ?? 'Turn on location to find money changers.',
+            onRetry: _load,
+          ),
+        ),
       );
     }
     final entries = _entries(here);
