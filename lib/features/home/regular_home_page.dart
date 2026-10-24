@@ -11,6 +11,7 @@ import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/currency_page.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
+import 'package:sekitaran/features/chat/global_chat_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/profile/profile_page.dart';
 
@@ -69,8 +70,7 @@ class _RegularHomePageState extends State<RegularHomePage>
       ..showSnackBar(SnackBar(content: Text(m)));
   }
 
-  bool isInIndonesia(LatLng p) =>
-      isInIndonesiaCoord(p.latitude, p.longitude);
+  bool isInIndonesia(LatLng p) => isInIndonesiaCoord(p.latitude, p.longitude);
 
   Future<void> _loadShops() async {
     try {
@@ -490,7 +490,8 @@ class _RegularHomePageState extends State<RegularHomePage>
     }
     if (_shopsError != null) return _hint(_shopsError!);
     final items = _nearest(here);
-    if (items.isEmpty) return _hint('No shops within 5 km for this category yet.');
+    if (items.isEmpty)
+      return _hint('No shops within 5 km for this category yet.');
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
       child: Column(
@@ -530,10 +531,7 @@ class _RegularHomePageState extends State<RegularHomePage>
                             ? null
                             : zoneOffsetFor(_pos!.latitude, _pos!.longitude),
                       ),
-                      _heading(
-                        'My Location',
-                        Icons.my_location,
-                      ),
+                      _heading('My Location', Icons.my_location),
                       const SizedBox(height: 12),
                       _mapBox(),
                       _heading('Nearest Shop', Icons.storefront_outlined),
@@ -569,10 +567,10 @@ class _RegularHomePageState extends State<RegularHomePage>
               builder: (_) => const ProfilePage(isRegularUser: true),
             ),
           ),
-          onExplore: () => _snack('Coming soon'),
-          onCurrency: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CurrencyPage()),
-          ),
+          onChat: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const GlobalChatPage())),
+          onCurrency: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const CurrencyPage())),
         ),
       ],
     );
@@ -670,8 +668,7 @@ class _ZoneClocksState extends State<_ZoneClocks> {
 
   @override
   Widget build(BuildContext context) {
-    final local =
-        widget.zoneOffset ?? DateTime.now().timeZoneOffset.inHours;
+    final local = widget.zoneOffset ?? DateTime.now().timeZoneOffset.inHours;
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,

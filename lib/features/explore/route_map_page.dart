@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
+import 'package:sekitaran/features/chat/global_chat_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/profile/profile_page.dart';
 
@@ -453,14 +454,14 @@ class _RouteMapPageState extends State<RouteMapPage>
           ),
         ),
         RadialNavMenu.regular(
-          current: RadialNavItem.explore,
           onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
           onProfile: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => const ProfilePage(isRegularUser: true),
             ),
           ),
-          onExplore: () {}, // sudah berada di halaman peta
+          onChat: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const GlobalChatPage())),
           onCurrency: _soon,
         ),
       ],

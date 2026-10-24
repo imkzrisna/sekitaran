@@ -9,6 +9,7 @@ import 'package:sekitaran/core/app_confirm_dialog.dart';
 import 'package:sekitaran/features/auth/biometric_service.dart';
 import 'package:sekitaran/features/auth/fingerprint_flow.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
+import 'package:sekitaran/features/chat/global_chat_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/profile/profile_service.dart';
 import 'package:sekitaran/features/store/add_store_page.dart';
@@ -850,7 +851,9 @@ class _ProfilePageState extends State<ProfilePage> {
             ? RadialNavMenu.regular(
                 current: RadialNavItem.profile,
                 onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
-                onExplore: () => _snack('Coming soon'),
+                onChat: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const GlobalChatPage()),
+                ),
                 onCurrency: () => _snack('Coming soon'),
                 onProfile: () {}, // sudah berada di halaman ini
               )
