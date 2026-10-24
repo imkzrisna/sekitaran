@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sekitaran/core/indonesia_geo.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/currency_page.dart';
@@ -514,7 +515,11 @@ class _RegularHomePageState extends State<RegularHomePage>
                       _subtitle(),
                       _heading('Local Time', Icons.schedule),
                       const SizedBox(height: 14),
-                      const _ZoneClocks(),
+                      _ZoneClocks(
+                        zoneOffset: _pos == null
+                            ? null
+                            : zoneOffsetFor(_pos!.latitude, _pos!.longitude),
+                      ),
                       _heading(
                         'My Location',
                         Icons.my_location,
@@ -566,7 +571,10 @@ class _RegularHomePageState extends State<RegularHomePage>
 
 /// Jam WIB / WITA / WIT. Hanya jam dan menit, diperbarui tiap pergantian menit.
 class _ZoneClocks extends StatefulWidget {
-  const _ZoneClocks();
+  const _ZoneClocks({this.zoneOffset});
+
+  /// Offset jam (7/8/9) dari lokasi pengguna. Null = pakai zona perangkat.
+  final int? zoneOffset;
 
   @override
   State<_ZoneClocks> createState() => _ZoneClocksState();
@@ -652,7 +660,8 @@ class _ZoneClocksState extends State<_ZoneClocks> {
 
   @override
   Widget build(BuildContext context) {
-    final local = DateTime.now().timeZoneOffset.inHours;
+    final local =
+        widget.zoneOffset ?? DateTime.now().timeZoneOffset.inHours;
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
