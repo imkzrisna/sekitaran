@@ -81,6 +81,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.2"
+  bubble:
+    dependency: "direct main"
+    description:
+      name: bubble
+      sha256: "75ce03de669476bd3167128fc68c6524851b235cb1d6fd91b9f2b3c3a6228f51"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.0"
   characters:
     dependency: transitive
     description:

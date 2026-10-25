@@ -37,8 +37,8 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
 
   Future<void> _initAsync() async {
     await _session.signInWithPasswordAsync(
-      email: "krizsna.mz@gmail.com",
-      password: "sayakurangtawu2",
+      email: "124240154@student.upnyk.ac.id",
+      password: "sayakurangtawu3",
     );
 
     if (!_isLoggedIn()) return;
@@ -88,48 +88,82 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
                   final messages = messageSnapshot.data!;
 
                   return SizedBox.expand(
-                    child: Column(
-                      children: [
-                        messages.isEmpty || messageSnapshot.data == null
-                            ? Center(child: Text("belum ada pesan!"))
-                            : Expanded(
-                                child: ListView.builder(
-                                  itemCount: messages.length,
-                                  itemBuilder: (context, index) {
-                                    final message = messages[index];
+                    child: Padding(
+                      padding: EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          messages.isEmpty || messageSnapshot.data == null
+                              ? Center(child: Text("belum ada pesan!"))
+                              : Expanded(
+                                  child: ListView.builder(
+                                    itemCount: messages.length,
+                                    itemBuilder: (context, index) {
+                                      final message = messages[index];
 
-                                    return Align(
-                                      alignment:
-                                          _currentUser!.username ==
-                                              message.username
-                                          ? Alignment.centerRight
-                                          : Alignment.centerLeft,
-                                      child:
-                                          _currentUser!.username ==
-                                              message.username
-                                          ? OwnedChat(message: message)
-                                          : UnownedChat(message: message),
-                                    );
-                                  },
+                                      return Padding(
+                                        padding: EdgeInsetsGeometry.symmetric(
+                                          horizontal: 0,
+                                          vertical: 5,
+                                        ),
+                                        child: Align(
+                                          alignment:
+                                              _currentUser!.username ==
+                                                  message.username
+                                              ? Alignment.centerRight
+                                              : Alignment.centerLeft,
+                                          child:
+                                              _currentUser!.username ==
+                                                  message.username
+                                              ? OwnedChat(message: message)
+                                              : UnownedChat(message: message),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+
+                          Row(
+                            spacing: 5,
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  keyboardType: TextInputType.multiline,
+                                  maxLines: null,
+                                  controller: messageController,
+                                  decoration: InputDecoration(
+                                    hint: Text("pesan"),
+                                    border: OutlineInputBorder(
+                                      borderSide: BorderSide(width: 2),
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(25 / 2),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-
-                        TextField(
-                          controller: messageController,
-                          decoration: InputDecoration(hint: Text("pesan")),
-                        ),
-                        FilledButton(
-                          onPressed: () async {
-                            await _service.sendChatAsync(
-                              Message(
-                                messageController.text,
-                                _currentUser!.username,
-                              ).withAvatarUrl(_currentUser!.avatarUrl),
-                            );
-                          },
-                          child: Text("send"),
-                        ),
-                      ],
+                              SizedBox(
+                                width: 50,
+                                height: 50,
+                                child: FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    shape: const CircleBorder(),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  onPressed: () async {
+                                    await _service.sendChatAsync(
+                                      Message(
+                                        messageController.text,
+                                        _currentUser!.username,
+                                      ).withAvatarUrl(_currentUser!.avatarUrl),
+                                    );
+                                  },
+                                  child: Icon(Icons.send),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
