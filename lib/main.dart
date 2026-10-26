@@ -1,9 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
-import 'package:sekitaran/features/chat/global_chat_page.dart';
-import 'package:sekitaran/features/global_chat/scratchpad/chat_scratchpad.dart';
-import 'package:sekitaran/features/wordle/wordle_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/supabase_config.dart';
 
@@ -33,7 +30,7 @@ class MyApp extends StatelessWidget {
           },
         ),
       ),
-      home: GlobalChatPage(),
+      home: const LoginPage(),
     );
   }
 }
