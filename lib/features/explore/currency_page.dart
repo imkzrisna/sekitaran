@@ -679,10 +679,7 @@ class _CurrencyPageState extends State<CurrencyPage>
                           color: Colors.white,
                           shape: BoxShape.circle,
                           boxShadow: [
-                            BoxShadow(
-                              color: Color(0x55000000),
-                              blurRadius: 6,
-                            ),
+                            BoxShadow(color: Color(0x55000000), blurRadius: 6),
                           ],
                         ),
                         child: const Icon(

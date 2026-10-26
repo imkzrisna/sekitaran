@@ -204,36 +204,10 @@ class _WordlePageState extends State<WordlePage> {
     );
   }
 
-  Widget _backButton() {
-    return IconButton(
-      onPressed: () => Navigator.of(context).maybePop(),
-      padding: EdgeInsets.zero,
-      alignment: Alignment.centerLeft,
-      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-      icon: const Icon(
-        Icons.arrow_back_ios_new,
-        size: 20,
-        color: WordleColors.correct,
-      ),
-    );
-  }
-
   Widget _header(bool compact) {
-    if (compact) {
-      return Row(
-        children: [_backButton(), const SizedBox(width: 12), _title()],
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _backButton(),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: _title(),
-        ),
-      ],
+    return Padding(
+      padding: EdgeInsets.fromLTRB(4, compact ? 14 : 24, 4, 0),
+      child: _title(),
     );
   }
 
@@ -407,7 +381,7 @@ class _WordlePageState extends State<WordlePage> {
         ),
       ),
       child: Text(
-        'Tebak kata lima huruf dengan batas 6 kali',
+        'Guess the five-letter word in 6 tries',
         style: GoogleFonts.poppins(
           fontSize: 14,
           fontWeight: FontWeight.w500,
