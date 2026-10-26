@@ -159,56 +159,56 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
   Widget _loading() =>
       const Center(child: CircularProgressIndicator(color: ChatColors.green));
 
-  Widget _header() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 20, 6),
-      child: Row(
+  Widget _header({required bool keyboardOpen}) {
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.fromLTRB(28, keyboardOpen ? 20 : 56, 28, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            onPressed: () => Navigator.of(context).maybePop(),
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              size: 20,
-              color: ChatColors.green,
-            ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Text(
+                'Global Chat',
+                style: GoogleFonts.poppins(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  color: ChatColors.green,
+                ),
+              ),
+              Positioned(
+                top: -14,
+                right: -22,
+                child: Text(
+                  '*',
+                  style: GoogleFonts.poppins(
+                    fontSize: 44,
+                    fontWeight: FontWeight.w500,
+                    color: ChatColors.green,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Text(
-                      'Global Chat',
-                      style: GoogleFonts.poppins(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        color: ChatColors.green,
-                      ),
-                    ),
-                    Positioned(
-                      top: -12,
-                      right: -18,
-                      child: Text(
-                        '*',
-                        style: GoogleFonts.poppins(
-                          fontSize: 38,
-                          fontWeight: FontWeight.w500,
-                          color: ChatColors.green,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  'Ngobrol dengan sesama pengguna Sekitaran',
-                  style: _hint(),
-                ),
-              ],
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.only(bottom: 3),
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: ChatColors.accent, width: 1.5),
+              ),
+            ),
+            child: Text(
+              'Ngobrol dengan sesama pengguna Sekitaran',
+              style: GoogleFonts.poppins(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                color: ChatColors.ink,
+              ),
             ),
           ),
         ],
@@ -367,7 +367,7 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: Column(
                   children: [
-                    _header(),
+                    _header(keyboardOpen: keyboardOpen),
                     Expanded(
                       child: _body(
                         keyboardOpen: keyboardOpen,
