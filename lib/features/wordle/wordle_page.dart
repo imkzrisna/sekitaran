@@ -344,8 +344,9 @@ class _WordlePageState extends State<WordlePage> {
   }
 
   Widget _title() {
-    return Stack(
-      clipBehavior: Clip.none,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Wordle',
@@ -355,17 +356,14 @@ class _WordlePageState extends State<WordlePage> {
             color: WordleColors.correct,
           ),
         ),
-        Positioned(
-          top: -14,
-          right: -22,
-          child: Text(
-            '*',
-            style: GoogleFonts.poppins(
-              fontSize: 44,
-              fontWeight: FontWeight.w500,
-              color: WordleColors.correct,
-              height: 1,
-            ),
+        const SizedBox(width: 3),
+        Text(
+          '*',
+          style: GoogleFonts.poppins(
+            fontSize: 34,
+            fontWeight: FontWeight.w500,
+            color: WordleColors.correct,
+            height: 1.1,
           ),
         ),
       ],
