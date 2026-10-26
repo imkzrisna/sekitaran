@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:sekitaran/core/indonesia_geo.dart';
 
 class LocationPickerMap extends StatefulWidget {
   const LocationPickerMap({
@@ -144,6 +145,10 @@ class _LocationPickerMapState extends State<LocationPickerMap>
       if (!mounted) return;
       final q = _readFields();
       if (q == null || q == _point) return;
+      if (!isInIndonesiaCoord(q.latitude, q.longitude)) {
+        _msg(kIndonesiaOnlyMessageId);
+        return;
+      }
       final d = _flyTo(q);
       setState(() {
         _pinDelay = d * 0.7; // pin jatuh saat kamera hampir tiba
@@ -164,6 +169,14 @@ class _LocationPickerMapState extends State<LocationPickerMap>
   }
 
   void _msg(String m) => widget.onMessage?.call(m);
+
+  void _pick(LatLng p) {
+    if (!isInIndonesiaCoord(p.latitude, p.longitude)) {
+      _msg(kIndonesiaOnlyMessageId);
+      return;
+    }
+    _setPoint(p);
+  }
 
   Future<void> _locate() async {
     if (_locating) return;
@@ -192,6 +205,10 @@ class _LocationPickerMapState extends State<LocationPickerMap>
         ),
       );
       final p = LatLng(pos.latitude, pos.longitude);
+      if (!isInIndonesiaCoord(p.latitude, p.longitude)) {
+        _msg(kIndonesiaOnlyMessageId);
+        return;
+      }
       final d = _flyTo(p, zoom: 17);
       _setPoint(p, pinDelay: d * 0.7);
     } on TimeoutException {
@@ -254,7 +271,7 @@ class _LocationPickerMapState extends State<LocationPickerMap>
                 onPositionChanged: (_, hasGesture) {
                   if (hasGesture && _anim.isAnimating) _anim.stop();
                 },
-                onTap: (_, p) => _setPoint(p),
+                onTap: (_, p) => _pick(p),
               ),
               children: [
                 TileLayer(

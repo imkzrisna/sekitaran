@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/home/user_radial_menu.dart';
+import 'package:sekitaran/features/profile/games_section.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -826,6 +828,20 @@ class _ProfilePageState extends State<ProfilePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _heading(
+                              'Games',
+                              Icons.sports_esports_outlined,
+                              caption: 'Istirahat sebentar dengan permainan',
+                            ),
+                            const GamesSection(),
+                          ],
+                        ),
+                      ),
+                      _Reveal(
+                        index: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _heading(
                               'Saran & Kesan',
                               Icons.rate_review_outlined,
                               caption: 'Pemrograman Aplikasi Mobile',
@@ -838,7 +854,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ],
                         ),
                       ),
-                      _Reveal(index: 5, child: _logoutButton()),
+                      _Reveal(index: 6, child: _logoutButton()),
                     ],
                   ),
                 ),
@@ -847,13 +863,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         widget.isRegularUser
-            ? RadialNavMenu.regular(
-                current: RadialNavItem.profile,
-                onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
-                onExplore: () => _snack('Coming soon'),
-                onCurrency: () => _snack('Coming soon'),
-                onProfile: () {}, // sudah berada di halaman ini
-              )
+            ? const UserRadialMenu(current: RadialNavItem.profile)
             : RadialNavMenu(
                 current: RadialNavItem.profile,
                 onHome: () => Navigator.of(context).popUntil((r) => r.isFirst),

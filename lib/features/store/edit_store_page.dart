@@ -471,7 +471,7 @@ class _EditStorePageState extends State<EditStorePage> {
 
   // ---------- Komponen dasar ----------
 
-  InputDecoration _decoration(String hint, {Color fill = _bg}) {
+  InputDecoration _decoration(String hint, {Color fill = Colors.white}) {
     OutlineInputBorder border(Color c) => OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
       borderSide: BorderSide(color: c, width: 1.2),
@@ -502,7 +502,7 @@ class _EditStorePageState extends State<EditStorePage> {
     TextInputType? keyboardType,
     List<TextInputFormatter>? formatters,
     ValueChanged<String>? onChanged,
-    Color fill = _bg,
+    Color fill = Colors.white,
   }) {
     return TextFormField(
       key: ObjectKey(controller),
@@ -527,9 +527,9 @@ class _EditStorePageState extends State<EditStorePage> {
             child: Text(
               text,
               style: GoogleFonts.poppins(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: _ink,
+                color: _grey,
               ),
             ),
           ),
@@ -693,19 +693,17 @@ class _EditStorePageState extends State<EditStorePage> {
   }) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      margin: const EdgeInsets.only(top: 28),
+      padding: const EdgeInsets.only(top: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border.withValues(alpha: 0.5)),
+        border: Border(top: BorderSide(color: _border.withValues(alpha: 0.6))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Flexible(child: _underlined(title)),
+              Flexible(child: _underlined(title, size: 17)),
               const SizedBox(width: 8),
               Icon(icon, color: _green, size: 22),
             ],
@@ -716,9 +714,9 @@ class _EditStorePageState extends State<EditStorePage> {
               child: Text(
                 caption,
                 style: GoogleFonts.poppins(
-                  fontSize: 12,
+                  fontSize: 12.5,
                   color: _grey,
-                  height: 1.4,
+                  height: 1.45,
                 ),
               ),
             ),
@@ -733,8 +731,8 @@ class _EditStorePageState extends State<EditStorePage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF0EF),
-        borderRadius: BorderRadius.circular(10),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _border, width: 1.2),
       ),
       child: Row(
@@ -789,72 +787,66 @@ class _EditStorePageState extends State<EditStorePage> {
     required VoidCallback onDelete,
     required List<Widget> children,
   }) {
-    return Container(
+    return TweenAnimationBuilder<double>(
       key: ObjectKey(entryKey),
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
-      decoration: BoxDecoration(
-        color: _bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border.withValues(alpha: 0.7)),
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      builder: (context, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, (1 - v) * 14),
+          child: child,
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 36,
-            child: Row(
-              children: [
-                Container(
-                  width: 26,
-                  height: 26,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: _green,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '$number',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ListenableBuilder(
-                    listenable: titleSource,
-                    builder: (_, _) => Text(
-                      title(),
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: _ink,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 18),
+        padding: const EdgeInsets.only(top: 12),
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: _border.withValues(alpha: 0.7)),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 32,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ListenableBuilder(
+                      listenable: titleSource,
+                      builder: (_, _) => Text(
+                        title(),
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: _green,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onDelete,
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Icon(
-                      Icons.delete_outline,
-                      size: 20,
-                      color: Colors.red.shade400,
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onDelete,
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Icon(
+                        Icons.close,
+                        size: 20,
+                        color: Colors.red.shade400,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          ...children,
-        ],
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -873,21 +865,41 @@ class _EditStorePageState extends State<EditStorePage> {
       },
       onDelete: () => _deleteEntry(d, i),
       children: [
-        _fieldLabel('$noun name', top: 4),
-        _field(
-          controller: e.name,
-          hint: 'Enter $lower name',
-          fill: Colors.white,
-          validator: (v) => _notEmpty(v, 'Enter the $lower name'),
-        ),
-        _fieldLabel('Price (IDR)', top: 12),
-        _field(
-          controller: e.price,
-          hint: 'Enter price',
-          fill: Colors.white,
-          keyboardType: TextInputType.number,
-          formatters: [ThousandsSeparatorFormatter()],
-          validator: (v) => _positiveIdr(v, 'Enter the price'),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _fieldLabel('$noun name', top: 2),
+                  _field(
+                    controller: e.name,
+                    hint: 'e.g. $lower name',
+                    validator: (v) => _notEmpty(v, 'Enter the $lower name'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _fieldLabel('Price (IDR)', top: 2),
+                  _field(
+                    controller: e.price,
+                    hint: '0',
+                    keyboardType: TextInputType.number,
+                    formatters: [ThousandsSeparatorFormatter()],
+                    validator: (v) => _positiveIdr(v, 'Enter the price'),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -948,26 +960,26 @@ class _EditStorePageState extends State<EditStorePage> {
   Widget _addButton(String text, VoidCallback? onTap) {
     return Opacity(
       opacity: onTap == null ? 0.4 : 1,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: _PressScale(
         onTap: onTap,
         child: Container(
           width: double.infinity,
-          margin: const EdgeInsets.only(top: 14),
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          margin: const EdgeInsets.only(top: 18),
+          padding: const EdgeInsets.symmetric(vertical: 13),
           decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _green, width: 1.2),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.add_circle_outline, size: 20, color: _green),
-              const SizedBox(width: 8),
+              const Icon(Icons.add, size: 20, color: _green),
+              const SizedBox(width: 6),
               Text(
                 text,
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w600,
                   color: _green,
                 ),
@@ -1013,43 +1025,54 @@ class _EditStorePageState extends State<EditStorePage> {
               style: GoogleFonts.poppins(fontSize: 13, color: _grey),
             ),
           ),
-        if (isExchange)
-          for (var i = 0; i < d.rates.length; i++) _rateCard(d, i)
-        else
-          for (var i = 0; i < d.items.length; i++) _itemCard(d, i),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isExchange)
+                for (var i = 0; i < d.rates.length; i++) _rateCard(d, i)
+              else
+                for (var i = 0; i < d.items.length; i++) _itemCard(d, i),
+            ],
+          ),
+        ),
         _addButton(addLabel, count < _maxEntries ? () => _addEntry(d) : null),
       ],
     );
   }
 
   Widget _saveButton() {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _save,
-      child: Container(
+    return _PressScale(
+      onTap: _saving ? null : _save,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
         width: double.infinity,
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(border: Border.all(color: _green, width: 2)),
-        child: Container(
-          height: 64,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: _green,
-            border: Border.all(color: Colors.white, width: 2),
-          ),
+        height: 54,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: _saving ? _green.withValues(alpha: 0.7) : _green,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
           child: _saving
               ? const SizedBox(
-                  width: 26,
-                  height: 26,
+                  key: ValueKey('busy'),
+                  width: 24,
+                  height: 24,
                   child: CircularProgressIndicator(
-                    strokeWidth: 3,
+                    strokeWidth: 2.5,
                     color: Colors.white,
                   ),
                 )
               : Text(
                   'Save Changes',
+                  key: const ValueKey('idle'),
                   style: GoogleFonts.poppins(
-                    fontSize: 16,
+                    fontSize: 15.5,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
@@ -1060,15 +1083,14 @@ class _EditStorePageState extends State<EditStorePage> {
   }
 
   Widget _deleteStoreButton() {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return _PressScale(
       onTap: _deleteStore,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red.shade400, width: 1.2),
+          color: Colors.red.shade400.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1092,13 +1114,8 @@ class _EditStorePageState extends State<EditStorePage> {
   Widget _emptyState() {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border.withValues(alpha: 0.5)),
-      ),
+      margin: const EdgeInsets.only(top: 28),
+      padding: const EdgeInsets.fromLTRB(0, 24, 0, 0),
       child: Column(
         children: [
           const Icon(Icons.storefront_outlined, size: 36, color: _green),
@@ -1243,6 +1260,42 @@ class _EditStorePageState extends State<EditStorePage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Efek tekan halus: mengecil sedikit saat disentuh.
+class _PressScale extends StatefulWidget {
+  const _PressScale({required this.child, this.onTap});
+
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  State<_PressScale> createState() => _PressScaleState();
+}
+
+class _PressScaleState extends State<_PressScale> {
+  bool _down = false;
+
+  void _set(bool v) {
+    if (widget.onTap != null && _down != v) setState(() => _down = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _set(true),
+      onTapUp: (_) => _set(false),
+      onTapCancel: () => _set(false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _down ? 0.97 : 1,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+        child: widget.child,
       ),
     );
   }

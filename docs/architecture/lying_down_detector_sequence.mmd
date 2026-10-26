@@ -1,0 +1,83 @@
+sequenceDiagram
+    autonumber
+    actor User
+    participant WP as WordlePage<br/>(_WordlePageState)
+    participant LD as LyingDownDetector
+    participant GS as GyroscopeEventStream<br/>(sensors_plus)
+    participant LO as LyingDownOverlay
+
+    Note over WP, LO: === INITIALIZATION ===
+    WP->>WP: initState()
+    WP->>LD: new LyingDownDetector(onLyingDownChanged, onOrientationChanged)
+    WP->>LD: startListening()
+    LD->>LD: _pitch=0, _roll=0, _yaw=0, _lastTimestamp=null
+    LD->>GS: gyroscopeEventStream(samplingPeriod: 50ms).listen(_onGyroscopeEvent)
+    GS-->>LD: StreamSubscription
+
+    Note over WP, LO: === GYROSCOPE EVENT LOOP ===
+    loop Every 50ms (while listening)
+        GS->>LD: GyroscopeEvent(x, y, z)
+        LD->>LD: _onGyroscopeEvent(event)
+        LD->>LD: now = DateTime.now()
+        alt _lastTimestamp != null
+            LD->>LD: dt = (now - _lastTimestamp) / 1_000_000
+            LD->>LD: _pitch += event.x * dt
+            LD->>LD: _roll += event.y * dt
+            LD->>LD: _yaw += event.z * dt
+            LD->>LD: Normalize angles to [-π, π]
+            LD->>LD: angularSpeed = sqrt(x² + y² + z²)
+            alt angularSpeed > 10.0 rad/s
+                LD->>LD: Reset _pitch=0, _roll=0, _yaw=0 (drift correction)
+            end
+        end
+        LD->>LD: _lastTimestamp = now
+        
+        Note over LD: Orientation callback (for UI if needed)
+        LD-->>WP: onOrientationChanged(_pitch, _roll, _yaw)
+        
+        Note over LD: Lying down detection
+        LD->>LD: currentlyLyingDown = |pitch|>1.3 OR |roll|>1.3
+        LD->>LD: _debounceStateChange(currentlyLyingDown)
+        
+        alt State change detected & not already debouncing
+            LD->>LD: Cancel existing _debounceTimer
+            LD->>LD: _debounceTarget = currentlyLyingDown
+            LD->>LD: Timer(2 seconds) → _debounceTimer
+            Note over LD: Wait 2s for stable state...
+        end
+    end
+
+    Note over WP, LO: === DEBOUNCE COMPLETION ===
+    LD->>LD: Timer fires after 2s
+    LD->>LD: _isLyingDown = currentlyLyingDown
+    LD->>LD: _debounceTarget = null
+    LD-->>WP: onLyingDownChanged(_isLyingDown)
+
+    Note over WP, LO: === UI REACTION ===
+    WP->>WP: setState(() => _isLyingDown = lyingDown)
+    WP->>WP: build()
+    
+    alt _isLyingDown == true
+        WP->>LO: LyingDownOverlay(onDismiss: resetOrientation)
+        LO->>User: Show overlay: "Mohon duduk untuk main game ini"
+        LO->>User: Button: "Aku sudah duduk"
+    end
+
+    Note over WP, LO: === USER DISMISSES OVERLAY ===
+    User->>LO: Tap "Aku sudah duduk"
+    LO->>WP: onDismiss()
+    WP->>LD: resetOrientation()
+    LD->>LD: _pitch=0, _roll=0, _yaw=0, _lastTimestamp=null
+    LD->>LD: Cancel _debounceTimer
+    LD->>LD: _debounceTarget = null
+    LD-->>WP: onOrientationChanged(0, 0, 0)
+    WP->>WP: setState() → rebuild
+    LO->>User: Overlay disappears
+
+    Note over WP, LO: === CLEANUP ===
+    WP->>WP: dispose()
+    WP->>LD: dispose()
+    LD->>LD: stopListening()
+    LD->>GS: _subscription?.cancel()
+    LD->>LD: _debounceTimer?.cancel()
+    LD->>LD: _subscription = null, _debounceTimer = null

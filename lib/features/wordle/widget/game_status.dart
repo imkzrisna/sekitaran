@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:sekitaran/features/wordle/widget/letter_tile.dart'
+    show WordleColors;
 import 'package:sekitaran/features/wordle/wordle_status.dart';
 
 class GameStatus extends StatelessWidget {
@@ -7,11 +10,13 @@ class GameStatus extends StatelessWidget {
     required this.status,
     this.correctWord,
     this.onRetry,
+    this.triesLeft,
   });
 
   final WordleStatus status;
   final String? correctWord;
   final VoidCallback? onRetry;
+  final int? triesLeft;
 
   bool get _isGameOver =>
       status == WordleStatus.correct || status == WordleStatus.outOfTries;
@@ -20,22 +25,27 @@ class GameStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     final (message, color, icon) = switch (status) {
       WordleStatus.correct => (
-        '🎉 Selamat! Kamu menang!',
-        const Color(0xFF103D17),
+        'Selamat! Kamu menang!',
+        WordleColors.correct,
         Icons.check_circle_outline,
       ),
       WordleStatus.outOfTries => (
-        'Game Over! Kata yang benar: ${correctWord?.toUpperCase() ?? '—'}',
-        const Color(0xFFC62828),
+        'Game over! Kata yang benar: ${correctWord?.toUpperCase() ?? '-'}',
+        WordleColors.danger,
         Icons.cancel_outlined,
       ),
-      _ => ('Coba tebak!', const Color(0xFF7A7A7A), Icons.help_outline),
+      _ => (
+        triesLeft == null
+            ? 'Coba tebak!'
+            : 'Coba tebak! Sisa $triesLeft kesempatan',
+        WordleColors.grey,
+        Icons.help_outline,
+      ),
     };
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
@@ -47,15 +57,15 @@ class GameStatus extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(width: 12),
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 10),
               Flexible(
                 child: Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: GoogleFonts.poppins(
                     color: color,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -69,13 +79,13 @@ class GameStatus extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh, size: 20),
-                label: const Text(
+                label: Text(
                   'Main lagi',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: color,
-                  side: BorderSide(color: color, width: 2),
+                  side: BorderSide(color: color, width: 1.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -89,4 +99,3 @@ class GameStatus extends StatelessWidget {
     );
   }
 }
-
