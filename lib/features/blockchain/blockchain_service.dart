@@ -1,15 +1,17 @@
 import 'package:sekitaran/features/blockchain/block.dart';
 import 'package:sekitaran/features/blockchain/infrastructure/supabase_blockchain_gateway.dart';
 import 'package:sekitaran/features/blockchain/infrastructure/supabase_transaction_repository.dart';
+import 'package:sekitaran/features/blockchain/infrastructure/supabase_wallet_gateway.dart';
 import 'package:sekitaran/features/blockchain/transaction.dart';
 import 'package:sekitaran/features/global_chat/adapter/session_manager/supabase_session_manager.dart';
 
 class BlockchainService {
-  new(this._gateway, this._transaction, this._session);
+  new(this._gateway, this._transaction, this._session, this._wallet);
 
   late final SupabaseBlockChainGateway _gateway;
   late final SupabaseTransactionRepository _transaction;
   late final SupabaseSessionManager _session;
+  late final SupabaseWalletGateway _wallet;
 
   Future<void> miningAsync() async {
     if (_session.currentSession == null) return;
@@ -23,6 +25,7 @@ class BlockchainService {
       );
 
       _gateway.addBlockAsync(block);
+      _wallet.addAmount(_session.currentSession!.userId, 0.01);
     }
   }
 

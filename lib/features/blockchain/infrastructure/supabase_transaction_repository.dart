@@ -4,9 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseTransactionRepository {
   Future<void> addAsync(Transaction transaction) async {
     await Supabase.instance.client.from("blockchain_transaction").insert({
-      "transaction_date": transaction.transactionDate,
+      "transaction_date": transaction.transactionDate.toString(),
       "transaction_amount": transaction.transactionAmount,
-      "user_id": transaction.userId,
+      "user_id": transaction.giverUserId,
       "memo": transaction.memo,
       "status": transaction.status,
     });
@@ -26,7 +26,7 @@ class SupabaseTransactionRepository {
                     row["memo"],
                   )
                   .withId(row["id"])
-                  .withTransactionDate(row["transaction_date"])
+                  .withTransactionDate(DateTime.parse(row["transaction_date"]))
                   .withStatus(row["status"]),
         )
         .toList();
@@ -60,7 +60,7 @@ class SupabaseTransactionRepository {
         .update({
           "transaction_date": transaction.transactionDate,
           "transaction_amount": transaction.transactionAmount,
-          "user_id": transaction.userId,
+          "user_id": transaction.giverUserId,
           "memo": transaction.memo,
           "status": transaction.status,
         })
