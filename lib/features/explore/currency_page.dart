@@ -10,7 +10,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/indonesia_geo.dart';
 import 'package:sekitaran/core/location_error_view.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
-import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 
@@ -51,6 +50,7 @@ class _CurrencyPageState extends State<CurrencyPage>
   static const _bg = Color(0xFFF2F9F8);
   static const _border = Color(0xFFC9C9C9);
   static const _grey = Color(0xFF7A7A7A);
+  static const _radiusMeters = 10000.0; // radius maksimal 10 km
 
   final _amount = TextEditingController(text: '1');
   LatLng? _pos;
@@ -185,6 +185,7 @@ class _CurrencyPageState extends State<CurrencyPage>
               : (codes.isEmpty ? null : codes.first);
         }
       });
+      _fitSoon();
     } on TimeoutException {
       if (mounted) setState(() => _error = 'Could not get your location.');
     } on String catch (m) {
@@ -233,9 +234,7 @@ class _CurrencyPageState extends State<CurrencyPage>
       if (!mounted) return;
       final here = LatLng(p.latitude, p.longitude);
       setState(() => _pos = here);
-      if (!isPointInView(_mapCtl.camera, here)) {
-        _animateTo(here, _mapCtl.camera.zoom);
-      }
+      _fitSoon();
     } on TimeoutException {
       if (mounted) _snack('Could not get your location.');
     } on String catch (m) {
@@ -246,6 +245,26 @@ class _CurrencyPageState extends State<CurrencyPage>
       if (mounted) setState(() => _locating = false);
     }
   }
+
+  /// Zoom agar posisi pengguna dan semua toko dalam 10 km terlihat.
+  void _fitNearby() {
+    final here = _pos;
+    if (here == null || !_mapReady || !mounted) return;
+    final list = _entries(here);
+    if (list.isEmpty) {
+      _animateTo(here, 15);
+      return;
+    }
+    final cam = CameraFit.coordinates(
+      coordinates: [here, ...list.map((e) => e.changer.shop.position)],
+      padding: const EdgeInsets.all(48),
+      maxZoom: 17,
+    ).fit(_mapCtl.camera);
+    _animateTo(cam.center, cam.zoom);
+  }
+
+  void _fitSoon() =>
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fitNearby());
 
   // ---------- Logika ----------
 
@@ -268,7 +287,8 @@ class _CurrencyPageState extends State<CurrencyPage>
     for (final c in _changers) {
       for (final r in c.rates) {
         if (r.code == code) {
-          list.add(_Entry(c, r, airMeters(here, c.shop.position)));
+          final m = airMeters(here, c.shop.position);
+          if (m <= _radiusMeters) list.add(_Entry(c, r, m));
           break;
         }
       }
@@ -443,10 +463,13 @@ class _CurrencyPageState extends State<CurrencyPage>
                     for (final c in codes)
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: () => setState(() {
-                          _code = c;
-                          _open = false;
-                        }),
+                        onTap: () {
+                          setState(() {
+                            _code = c;
+                            _open = false;
+                          });
+                          _fitSoon();
+                        },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 160),
                           padding: const EdgeInsets.symmetric(
@@ -615,7 +638,10 @@ class _CurrencyPageState extends State<CurrencyPage>
             options: MapOptions(
               initialCenter: here,
               initialZoom: 13,
-              onMapReady: () => _mapReady = true,
+              onMapReady: () {
+                _mapReady = true;
+                _fitSoon();
+              },
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom,
               ),
@@ -795,9 +821,12 @@ class _CurrencyPageState extends State<CurrencyPage>
       children: [
         const SizedBox(height: 20),
         _map(here, entries),
-        _heading('Stores offering ${_code ?? ''}', Icons.storefront_outlined),
+        _heading(
+          'Stores offering ${_code ?? ''} within 10 km',
+          Icons.storefront_outlined,
+        ),
         if (entries.isEmpty)
-          _hint('No money changer offers this currency yet.')
+          _hint('No money changer within 10 km offers this currency.')
         else
           for (final e in entries)
             _card(e, here, best: entries.length > 1 && e == _best(entries)),
