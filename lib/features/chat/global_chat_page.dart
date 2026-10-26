@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:sekitaran/features/auth/entity/user_profile.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/auth/auth_service.dart';
+import 'package:sekitaran/features/auth/entity/user_profile.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:sekitaran/features/auth/persistence/user_profile_repository/supabase_user_profile_repository.dart';
-import 'package:sekitaran/features/chat/widget/owned_chat.dart';
-import 'package:sekitaran/features/chat/widget/unowned_chat.dart';
+import 'package:sekitaran/features/chat/widget/chat_bubble.dart'
+    show ChatColors;
+import 'package:sekitaran/features/chat/widget/chat_message_list.dart';
 import 'package:sekitaran/features/global_chat/adapter/session_manager/supabase_session_manager.dart';
 import 'package:sekitaran/features/global_chat/chat_service.dart';
 import 'package:sekitaran/features/global_chat/entity/message.dart';
+import 'package:sekitaran/features/global_chat/status/send_chat_status.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/home/user_radial_menu.dart';
 
-/// Halaman Global Chat. Sengaja kosong; isinya menyusul.
+/// Halaman Global Chat untuk Regular User.
 class GlobalChatPage extends StatefulWidget {
   const new({super.key});
 
@@ -20,8 +23,11 @@ class GlobalChatPage extends StatefulWidget {
 }
 
 class _GlobalChatPageState extends State<GlobalChatPage> {
-  static const _bg = Color(0xFFF2F9F8);
-  static const _green = Color(0xFF103D17);
+  // Posisi tombol menu melingkar. Samakan dengan radial_nav_menu.dart.
+  static const _fabSize = 58.0;
+  static const _fabRight = 20.0;
+  static const _fabBottom = 40.0;
+  static const _sendSize = 46.0;
 
   late Future<void> _initAsyncFuture;
 
@@ -30,7 +36,9 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
   late ChatService _service;
 
   UserProfile? _currentUser;
+  Stream<List<Message>>? _messages; // dibuat satu kali, bukan tiap rebuild
   bool _roleBlocked = false;
+  bool _sending = false;
 
   final messageController = TextEditingController();
 
@@ -51,6 +59,9 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
     _currentUser = await _userProfile.getByIdAsync(
       _session.currentSession!.userId,
     );
+    if (_currentUser != null) {
+      _messages = _service.chatList;
+    }
   }
 
   @override
@@ -63,48 +74,141 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
     _initAsyncFuture = _initAsync();
   }
 
-  Widget _restricted() {
-    return const Center(
+  @override
+  void dispose() {
+    messageController.dispose();
+    _service.dispose(); // tutup channel realtime
+    super.dispose();
+  }
+
+  void _snack(String m) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  Future<void> _send() async {
+    final user = _currentUser;
+    final text = messageController.text.trim();
+    if (user == null || text.isEmpty || _sending) return;
+    _sending = true;
+    messageController.clear();
+    try {
+      final status = await _service.sendChatAsync(
+        Message(text, user.username).withAvatarUrl(user.avatarUrl),
+      );
+      if (status != SendChatStatus.success && mounted) {
+        messageController.text = text;
+        _snack('Pesan gagal dikirim. Silakan coba lagi.');
+      }
+    } catch (_) {
+      if (mounted) {
+        messageController.text = text;
+        _snack('Pesan gagal dikirim. Periksa koneksi internet.');
+      }
+    } finally {
+      _sending = false;
+    }
+  }
+
+  // ---------- Tampilan ----------
+
+  TextStyle _hint() =>
+      GoogleFonts.poppins(fontSize: 13, color: ChatColors.grey);
+
+  Widget _centered(IconData icon, String text, {Widget? action}) {
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.lock_outline, size: 30, color: Color(0xFF7A7A7A)),
-            SizedBox(height: 8),
-            Text(
-              'Global chat is only available for regular users.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Color(0xFF7A7A7A)),
-            ),
+            Icon(icon, size: 30, color: ChatColors.grey),
+            const SizedBox(height: 8),
+            Text(text, textAlign: TextAlign.center, style: _hint()),
+            ?action,
           ],
         ),
       ),
     );
   }
 
-  Widget _loginRequired() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+  Widget _restricted() => _centered(
+    Icons.lock_outline,
+    'Global chat is only available for regular users.',
+  );
+
+  Widget _loginRequired() => _centered(
+    Icons.lock_outline,
+    'Please log in to join the chat.',
+    action: TextButton(
+      onPressed: () => Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (_) => false,
+      ),
+      child: Text(
+        'Go to login',
+        style: GoogleFonts.poppins(
+          fontWeight: FontWeight.w600,
+          color: ChatColors.green,
+        ),
+      ),
+    ),
+  );
+
+  Widget _loading() =>
+      const Center(child: CircularProgressIndicator(color: ChatColors.green));
+
+  Widget _header() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 20, 6),
+      child: Row(
         children: [
-          const Icon(Icons.lock_outline, size: 30, color: Color(0xFF7A7A7A)),
-          const SizedBox(height: 8),
-          const Text(
-            'Please log in to join the chat.',
-            style: TextStyle(fontSize: 13, color: Color(0xFF7A7A7A)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const LoginPage()),
-              (_) => false,
+          IconButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(
+              Icons.arrow_back_ios_new,
+              size: 20,
+              color: ChatColors.green,
             ),
-            child: const Text(
-              'Go to login',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: _green,
-              ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Text(
+                      'Global Chat',
+                      style: GoogleFonts.poppins(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: ChatColors.green,
+                      ),
+                    ),
+                    Positioned(
+                      top: -12,
+                      right: -18,
+                      child: Text(
+                        '*',
+                        style: GoogleFonts.poppins(
+                          fontSize: 38,
+                          fontWeight: FontWeight.w500,
+                          color: ChatColors.green,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  'Ngobrol dengan sesama pengguna Sekitaran',
+                  style: _hint(),
+                ),
+              ],
             ),
           ),
         ],
@@ -112,130 +216,171 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
     );
   }
 
+  Widget _empty() => _centered(
+    Icons.forum_outlined,
+    'Belum ada pesan. Jadilah yang pertama menyapa!',
+  );
+
+  Widget _sendButton() {
+    return ListenableBuilder(
+      listenable: messageController,
+      builder: (_, _) {
+        final can = messageController.text.trim().isNotEmpty;
+        return Material(
+          color: can ? ChatColors.green : ChatColors.border,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: can ? _send : null,
+            child: const SizedBox(
+              width: _sendSize,
+              height: _sendSize,
+              child: Icon(Icons.send_rounded, color: Colors.white, size: 20),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _inputBar({required bool keyboardOpen, required double safeBottom}) {
+    OutlineInputBorder border(Color c) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(24),
+      borderSide: BorderSide(color: c, width: 1.2),
+    );
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.fromLTRB(
+        16,
+        8,
+        // Saat keyboard tertutup, sisakan ruang untuk tombol menu melingkar.
+        keyboardOpen ? 16 : _fabRight + _fabSize + 12,
+        keyboardOpen
+            ? 10
+            : _fabBottom + (_fabSize - _sendSize) / 2 + safeBottom,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: TextField(
+              controller: messageController,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              minLines: 1,
+              maxLines: 4,
+              style: GoogleFonts.poppins(fontSize: 14, color: ChatColors.ink),
+              decoration: InputDecoration(
+                hintText: 'Tulis pesan...',
+                hintStyle: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w300,
+                  color: const Color(0xFF9A9A9A),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                enabledBorder: border(ChatColors.border),
+                focusedBorder: border(ChatColors.green),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _sendButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _ready(
+    List<Message> messages, {
+    required bool keyboardOpen,
+    required double safeBottom,
+  }) {
+    return Column(
+      children: [
+        Expanded(
+          child: messages.isEmpty
+              ? _empty()
+              : ChatMessageList(
+                  messages: messages,
+                  currentUsername: _currentUser!.username,
+                ),
+        ),
+        _inputBar(keyboardOpen: keyboardOpen, safeBottom: safeBottom),
+      ],
+    );
+  }
+
+  Widget _body({required bool keyboardOpen, required double safeBottom}) {
+    return FutureBuilder(
+      future: _initAsyncFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) return _loading();
+        if (_roleBlocked) return _restricted();
+        final stream = _messages;
+        if (stream == null || _currentUser == null) return _loginRequired();
+
+        return StreamBuilder<List<Message>>(
+          stream: stream,
+          builder: (context, snap) {
+            if (_session.currentSession == null) return _loginRequired();
+            if (snap.hasError) {
+              return _centered(
+                Icons.cloud_off_outlined,
+                'Gagal memuat pesan. Buka ulang halaman ini.',
+              );
+            }
+            final messages = snap.data;
+            if (messages == null) return _loading();
+            return _ready(
+              messages,
+              keyboardOpen: keyboardOpen,
+              safeBottom: safeBottom,
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+
     return Stack(
       fit: StackFit.expand,
       children: [
         Scaffold(
-          backgroundColor: _bg,
-          body: FutureBuilder(
-            future: _initAsyncFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(
-                  child: CircularProgressIndicator(color: _green),
-                );
-              }
-              if (_roleBlocked) return _restricted();
-              final chatlist = _service.chatList;
-              if (chatlist == null || _currentUser == null) {
-                return _loginRequired();
-              }
-
-              return StreamBuilder(
-                stream: chatlist,
-                builder: (context, messageSnapshot) {
-                  if (_session.currentSession == null) {
-                    return _loginRequired();
-                  }
-                  if (messageSnapshot.hasError) {
-                    return const Center(
-                      child: Text('Could not load messages.'),
-                    );
-                  }
-                  final messages = messageSnapshot.data;
-                  if (messages == null) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: _green),
-                    );
-                  }
-
-                  return SizedBox.expand(
-                    child: Padding(
-                      padding: EdgeInsets.all(10),
-                      child: Column(
-                        children: [
-                          messages.isEmpty
-                              ? Center(child: Text("belum ada pesan!"))
-                              : Expanded(
-                                  child: ListView.builder(
-                                    itemCount: messages.length,
-                                    itemBuilder: (context, index) {
-                                      final message = messages[index];
-
-                                      return Padding(
-                                        padding: EdgeInsetsGeometry.symmetric(
-                                          horizontal: 0,
-                                          vertical: 5,
-                                        ),
-                                        child: Align(
-                                          alignment:
-                                              _currentUser!.username ==
-                                                  message.username
-                                              ? Alignment.centerRight
-                                              : Alignment.centerLeft,
-                                          child:
-                                              _currentUser!.username ==
-                                                  message.username
-                                              ? OwnedChat(message: message)
-                                              : UnownedChat(message: message),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-
-                          Row(
-                            spacing: 5,
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  keyboardType: TextInputType.multiline,
-                                  maxLines: null,
-                                  controller: messageController,
-                                  decoration: InputDecoration(
-                                    hint: Text("pesan"),
-                                    border: OutlineInputBorder(
-                                      borderSide: BorderSide(width: 2),
-                                      borderRadius: BorderRadius.all(
-                                        Radius.circular(25 / 2),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                width: 50,
-                                height: 50,
-                                child: FilledButton(
-                                  style: FilledButton.styleFrom(
-                                    shape: const CircleBorder(),
-                                    padding: EdgeInsets.zero,
-                                  ),
-                                  onPressed: () async {
-                                    await _service.sendChatAsync(
-                                      Message(
-                                        messageController.text,
-                                        _currentUser!.username,
-                                      ).withAvatarUrl(_currentUser!.avatarUrl),
-                                    );
-                                  },
-                                  child: Icon(Icons.send),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+          backgroundColor: ChatColors.bg,
+          body: SafeArea(
+            bottom: false,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Column(
+                  children: [
+                    _header(),
+                    Expanded(
+                      child: _body(
+                        keyboardOpen: keyboardOpen,
+                        safeBottom: safeBottom,
                       ),
                     ),
-                  );
-                },
-              );
-            },
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
-        UserRadialMenu(current: RadialNavItem.chat),
+        const UserRadialMenu(current: RadialNavItem.chat),
       ],
     );
   }
