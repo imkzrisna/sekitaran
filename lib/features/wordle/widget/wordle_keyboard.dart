@@ -3,11 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/wordle/widget/letter_tile.dart'
     show TileState, WordleColors;
 
+/// Keyboard huruf + hapus. Tombol kirim (Enter) ada di kotak status.
 class WordleKeyboard extends StatelessWidget {
   const WordleKeyboard({
     super.key,
     required this.onLetter,
-    required this.onEnter,
     required this.onBackspace,
     this.keyStates = const {},
     this.enabled = true,
@@ -19,7 +19,6 @@ class WordleKeyboard extends StatelessWidget {
   static const _idle = Color(0xFFE6ECEB);
 
   final void Function(String letter) onLetter;
-  final VoidCallback onEnter;
   final VoidCallback onBackspace;
 
   /// Huruf kapital -> status terbaik huruf itu dari semua tebakan.
@@ -90,19 +89,7 @@ class WordleKeyboard extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              _key(
-                flex: 3,
-                fill: _idle,
-                onTap: onEnter,
-                child: Text(
-                  'Enter',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: WordleColors.ink,
-                  ),
-                ),
-              ),
+              const Spacer(flex: 3),
               for (final c in _row3.split('')) _letter(c),
               _key(
                 flex: 3,

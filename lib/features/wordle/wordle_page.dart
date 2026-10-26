@@ -16,6 +16,7 @@ import 'package:sekitaran/features/wordle/widget/wordle_board.dart';
 import 'package:sekitaran/features/wordle/widget/wordle_keyboard.dart';
 import 'package:sekitaran/features/wordle/wordle_instance.dart';
 import 'package:sekitaran/features/wordle/wordle_status.dart';
+import 'package:sekitaran/features/wordle/wordle_words.dart';
 
 class WordlePage extends StatefulWidget {
   const WordlePage({super.key});
@@ -29,45 +30,7 @@ class _WordlePageState extends State<WordlePage> {
   static const _wordLength = 5;
 
   // Word list for the game
-  static const _words = [
-    // Tempat tinggal dan kehidupan anak kos
-    'kosan',
-    'kamar',
-    'sewa',
-    // Tempat dan usaha di sekitar
-    'pasar',
-    'halte',
-    'taman',
-    'dekat',
-    'lokal',
-
-    // Belanja dan kebutuhan sehari-hari
-    'nyari',
-    'bayar',
-    'harga',
-    'murah',
-    'mahal',
-    'hemat',
-    'jajan',
-    // Makanan dan kebutuhan anak kos
-    'lapar',
-    'bakso',
-    'beras',
-    'sikat',
-    'sabun',
-    'galon',
-    'masak',
-    'makan',
-    'bekal',
-    // Kehidupan perantau dan lingkungan
-    'teman',
-    'warga',
-    'rindu',
-    'salam',
-    'bantu',
-    'dekat',
-    'jalan',
-  ];
+  static final _words = kWordleHints.keys.toList();
 
   late final WordleInstance _instance;
   WordleGuessResult? _lastResult;
@@ -225,7 +188,9 @@ class _WordlePageState extends State<WordlePage> {
                             ),
                             const SizedBox(height: 12),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -257,6 +222,8 @@ class _WordlePageState extends State<WordlePage> {
                               ),
                             ),
                             _gameStatus(),
+                            const SizedBox(height: 12),
+                            _hintCard(),
                           ],
                         ),
                       ),
@@ -265,7 +232,6 @@ class _WordlePageState extends State<WordlePage> {
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                       child: WordleKeyboard(
                         onLetter: _onLetter,
-                        onEnter: _onEnter,
                         onBackspace: _onBackspace,
                         keyStates: _keyStates(),
                         enabled: !_isGameOver,
@@ -289,19 +255,46 @@ class _WordlePageState extends State<WordlePage> {
 
   Widget _gameStatus() {
     final used = _lastResult?.history.length ?? 0;
-    if (_lastResult == null) {
-      return const GameStatus(
-        status: WordleStatus.incorrect,
-        triesLeft: _maxTries,
-      );
-    }
+    final status = _lastResult?.status ?? WordleStatus.incorrect;
     return GameStatus(
-      status: _lastResult!.status,
+      status: status,
       triesLeft: _maxTries - used,
-      correctWord: _isGameOver && _lastResult!.status == WordleStatus.outOfTries
+      correctWord: _isGameOver && status == WordleStatus.outOfTries
           ? _instance.correctWord
           : null,
       onRetry: _isGameOver ? _retryGame : null,
+      onSubmit: _isGameOver ? null : _onEnter,
+      canSubmit: _current.length == _wordLength,
+    );
+  }
+
+  Widget _hintCard() {
+    final hint = kWordleHints[_instance.correctWord.toLowerCase()];
+    if (hint == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: 'Petunjuk : ',
+              style: GoogleFonts.poppins(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: WordleColors.ink,
+              ),
+            ),
+            TextSpan(
+              text: hint,
+              style: GoogleFonts.poppins(
+                fontSize: 13.5,
+                color: WordleColors.grey,
+              ),
+            ),
+          ],
+        ),
+        style: const TextStyle(height: 1.5),
+      ),
     );
   }
 

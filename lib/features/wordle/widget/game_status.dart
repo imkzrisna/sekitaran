@@ -4,6 +4,8 @@ import 'package:sekitaran/features/wordle/widget/letter_tile.dart'
     show WordleColors;
 import 'package:sekitaran/features/wordle/wordle_status.dart';
 
+/// Kotak status. Saat permainan berjalan, kotak ini juga tombol "Tebak":
+/// abu-abu bila huruf belum lengkap, hijau bila siap dikirim.
 class GameStatus extends StatelessWidget {
   const GameStatus({
     super.key,
@@ -11,12 +13,16 @@ class GameStatus extends StatelessWidget {
     this.correctWord,
     this.onRetry,
     this.triesLeft,
+    this.onSubmit,
+    this.canSubmit = false,
   });
 
   final WordleStatus status;
   final String? correctWord;
   final VoidCallback? onRetry;
   final int? triesLeft;
+  final VoidCallback? onSubmit;
+  final bool canSubmit;
 
   bool get _isGameOver =>
       status == WordleStatus.correct || status == WordleStatus.outOfTries;
@@ -43,58 +49,103 @@ class GameStatus extends StatelessWidget {
       ),
     };
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+    final playing = !_isGameOver;
+    final tappable = playing && onSubmit != null;
+    final ready = tappable && canSubmit;
+    final fg = ready ? Colors.white : color;
+    final bg = ready ? WordleColors.correct : color.withValues(alpha: 0.1);
+    final borderColor = ready
+        ? WordleColors.correct
+        : color.withValues(alpha: 0.3);
+
+    return Material(
+      color: bg,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        side: BorderSide(color: borderColor),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: tappable ? onSubmit : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    color: color,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+              Row(
+                children: [
+                  Icon(icon, color: fg, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: GoogleFonts.poppins(
+                        color: fg,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (tappable)
+                    Container(
+                      margin: const EdgeInsets.only(left: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ready
+                            ? Colors.white
+                            : color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.keyboard_return,
+                            size: 16,
+                            color: ready ? WordleColors.correct : color,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Tebak',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: ready ? WordleColors.correct : color,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+              if (_isGameOver && onRetry != null) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh, size: 20),
+                    label: Text(
+                      'Main lagi',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: color,
+                      side: BorderSide(color: color, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
-          if (_isGameOver && onRetry != null) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh, size: 20),
-                label: Text(
-                  'Main lagi',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: color,
-                  side: BorderSide(color: color, width: 1.5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
