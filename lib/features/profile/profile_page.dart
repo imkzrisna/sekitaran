@@ -827,11 +827,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _heading(
-                              'Games',
-                              Icons.sports_esports_outlined,
-                              caption: 'Istirahat sebentar dengan permainan',
-                            ),
+                            _heading('Games', Icons.sports_esports_outlined),
                             const GamesSection(),
                           ],
                         ),
