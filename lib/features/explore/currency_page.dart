@@ -50,6 +50,7 @@ class _CurrencyPageState extends State<CurrencyPage>
   static const _bg = Color(0xFFF2F9F8);
   static const _border = Color(0xFFC9C9C9);
   static const _grey = Color(0xFF7A7A7A);
+  static const _gold = Color(0xFFC99A4A);
   static const _radiusMeters = 10000.0; // radius maksimal 10 km
 
   final _amount = TextEditingController(text: '1');
@@ -654,15 +655,41 @@ class _CurrencyPageState extends State<CurrencyPage>
               MarkerLayer(
                 markers: [
                   for (final e in entries)
+                    if (!(entries.length > 1 && e == _best(entries)))
+                      Marker(
+                        point: e.changer.shop.position,
+                        width: 30,
+                        height: 30,
+                        alignment: Alignment.topCenter,
+                        child: const Icon(
+                          Icons.location_on,
+                          color: _green,
+                          size: 30,
+                        ),
+                      ),
+                  if (entries.length > 1)
                     Marker(
-                      point: e.changer.shop.position,
-                      width: 30,
-                      height: 30,
+                      point: _best(entries).changer.shop.position,
+                      width: 48,
+                      height: 48,
                       alignment: Alignment.topCenter,
-                      child: const Icon(
-                        Icons.location_on,
-                        color: _green,
-                        size: 30,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 2),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0x55000000),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.star_rounded,
+                          color: _gold,
+                          size: 34,
+                        ),
                       ),
                     ),
                   Marker(
@@ -770,6 +797,8 @@ class _CurrencyPageState extends State<CurrencyPage>
                   ),
                   if (best) ...[
                     const SizedBox(width: 8),
+                    const Icon(Icons.star_rounded, size: 15, color: _gold),
+                    const SizedBox(width: 3),
                     Text(
                       'Best rate',
                       style: GoogleFonts.poppins(
