@@ -74,6 +74,7 @@ class ChatBubble extends StatelessWidget {
 
   static const _avatar = 36.0;
   static const _gap = 8.0;
+  static const _timeGap = '\u2003\u2003\u2003';
 
   final String text;
   final String name;
@@ -106,26 +107,35 @@ class ChatBubble extends StatelessWidget {
         border: mine ? null : Border.all(color: ChatColors.bubbleBorder),
         borderRadius: radius,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
         children: [
-          if (!mine && firstInGroup)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Text(
-                name,
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: ChatColors.green,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!mine && firstInGroup)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    name,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: ChatColors.green,
+                    ),
+                  ),
                 ),
+              _CollapsibleText(
+                text: text,
+                mine: mine,
+                suffix: createdAt != null ? _timeGap : '',
               ),
-            ),
-          _CollapsibleText(text: text, mine: mine),
-          if (lastInGroup && createdAt != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
+            ],
+          ),
+          if (createdAt != null)
+            Positioned(
+              right: 0,
+              bottom: 0,
               child: Text(
                 _hhmm(createdAt!),
                 style: GoogleFonts.poppins(
@@ -180,10 +190,15 @@ class ChatBubble extends StatelessWidget {
 
 /// Teks pesan: pesan panjang dipotong 8 baris dengan tombol selengkapnya.
 class _CollapsibleText extends StatefulWidget {
-  const _CollapsibleText({required this.text, required this.mine});
+  const _CollapsibleText({
+    required this.text,
+    required this.mine,
+    this.suffix = '',
+  });
 
   final String text;
   final bool mine;
+  final String suffix;
 
   @override
   State<_CollapsibleText> createState() => _CollapsibleTextState();
@@ -201,7 +216,7 @@ class _CollapsibleTextState extends State<_CollapsibleText> {
     return LayoutBuilder(
       builder: (context, c) {
         final painter = TextPainter(
-          text: TextSpan(text: widget.text, style: style),
+          text: TextSpan(text: widget.text + widget.suffix, style: style),
           textDirection: Directionality.of(context),
           maxLines: _maxLines,
         )..layout(maxWidth: c.maxWidth);
@@ -212,7 +227,7 @@ class _CollapsibleTextState extends State<_CollapsibleText> {
           mainAxisSize: MainAxisSize.min,
           children: [
             SelectableText(
-              widget.text,
+              widget.text + widget.suffix,
               style: style,
               maxLines: (!overflows || _expanded) ? null : _maxLines,
             ),
