@@ -366,6 +366,7 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _header(keyboardOpen: keyboardOpen),
                     Expanded(
