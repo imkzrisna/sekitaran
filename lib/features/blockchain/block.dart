@@ -31,6 +31,12 @@ class Block {
     return this;
   }
 
+  Block withHash(String hash) {
+    this.hash = hash;
+
+    return this;
+  }
+
   String calculateHash() {
     final inputHash = utf8.encode(
       "$index-$createdAt-$data-$previousHash-$nonce",
