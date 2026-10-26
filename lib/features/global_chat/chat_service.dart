@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:sekitaran/features/auth/persistence/user_profile_repository/supabase_user_profile_repository.dart';
 import 'package:sekitaran/features/auth/persistence/user_profile_repository/user_profile_repository_interface.dart';
 import 'package:sekitaran/features/global_chat/adapter/chat_gateway/chat_gateway_interface.dart';

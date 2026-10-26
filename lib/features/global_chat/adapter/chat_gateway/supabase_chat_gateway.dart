@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sekitaran/features/auth/persistence/user_profile_repository/user_profile_repository_interface.dart';
 import 'package:sekitaran/features/global_chat/adapter/chat_gateway/chat_gateway_interface.dart';
 import 'package:sekitaran/features/global_chat/entity/message.dart';
@@ -40,7 +41,6 @@ class SupabaseChatGateway implements ChatGatewayInterface {
   @override
   Stream<List<Message>> watchMessages() {
     final controller = StreamController<List<Message>>.broadcast();
-    List<Message> messages = [];
 
     _channel = client
         .channel('public:messages')
@@ -88,7 +88,7 @@ class SupabaseChatGateway implements ChatGatewayInterface {
     try {
       await client.from("message").delete().eq("id", chatUuid);
     } catch (e) {
-      print("failed to delete messages!: " + e.toString());
+      debugPrint("failed to delete messages!: $e");
     }
   }
 

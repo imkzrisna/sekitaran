@@ -4,7 +4,7 @@ import 'package:sekitaran/features/global_chat/adapter/chat_gateway/chat_gateway
 import 'package:sekitaran/features/global_chat/entity/message.dart';
 
 class FakeChatGateway implements ChatGatewayInterface {
-  List<Message> _messages = <Message>[];
+  final List<Message> _messages = <Message>[];
 
   final StreamController<List<Message>> _chatListController =
       StreamController<List<Message>>.broadcast(sync: true);

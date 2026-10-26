@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:flutter/material.dart';
 import 'package:sekitaran/features/global_chat/adapter/session_manager/supabase_session_manager.dart';
 import 'package:sekitaran/features/global_chat/chat_service.dart';
@@ -34,8 +35,8 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
 
     final status = await _service.editMessageAsync(id, "I'm doing great!");
 
-    print("update status: " + status.toString());
-    print("send chat status: " + sendChatStatus.toString());
+    print("update status: $status");
+    print("send chat status: $sendChatStatus");
   }
 
   @override
@@ -66,7 +67,7 @@ class _ChatScratchpadState extends State<ChatScratchpad> {
         future: _initAsyncFuture,
         builder: (context, snapshot) {
           if (snapshot.error != null) {
-            print("an errro occured: " + snapshot.error.toString());
+            print("an errro occured: ${snapshot.error}");
           }
 
           return StreamBuilder<AuthSession?>(

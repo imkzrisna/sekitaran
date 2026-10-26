@@ -1,5 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 class AuthSession {
   const AuthSession({
     required this.userId,
