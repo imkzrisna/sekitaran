@@ -70,6 +70,26 @@ class _RegularHomePageState extends State<RegularHomePage>
 
   bool isInIndonesia(LatLng p) => isInIndonesiaCoord(p.latitude, p.longitude);
 
+  /// Zoom agar posisi pengguna dan semua toko dalam 5 km terlihat.
+  void _fitNearest() {
+    final here = _pos;
+    if (here == null || !_mapReady || !mounted) return;
+    final near = _nearest(here);
+    if (near.isEmpty) {
+      _mover.animateTo(here, zoom: 17);
+      return;
+    }
+    final cam = CameraFit.coordinates(
+      coordinates: [here, ...near.map((e) => e.shop.position)],
+      padding: const EdgeInsets.all(48),
+      maxZoom: 17,
+    ).fit(_mapCtl.camera);
+    _mover.animateTo(cam.center, zoom: cam.zoom);
+  }
+
+  void _fitSoon() =>
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fitNearest());
+
   Future<void> _loadShops() async {
     try {
       final shops = await fetchShops();
@@ -78,6 +98,7 @@ class _RegularHomePageState extends State<RegularHomePage>
         _shops = shops;
         _shopsError = null;
       });
+      _fitSoon();
     } on ShopsFailure catch (e) {
       if (mounted) setState(() => _shopsError = e.message);
     }
@@ -124,7 +145,7 @@ class _RegularHomePageState extends State<RegularHomePage>
       setState(() {
         _pos = here;
       });
-      if (_mapReady) _mover.reveal(here);
+      _fitSoon();
     } on TimeoutException {
       _fail('Could not get your location. Try again outdoors.');
     } catch (_) {
@@ -275,6 +296,7 @@ class _RegularHomePageState extends State<RegularHomePage>
         onMapReady: () {
           _mapReady = true;
           _mover.ready = true;
+          _fitSoon();
         },
         interactionOptions: const InteractionOptions(
           flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom,
@@ -394,7 +416,10 @@ class _RegularHomePageState extends State<RegularHomePage>
     final sel = _filter == value;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => _filter = value),
+      onTap: () {
+        setState(() => _filter = value);
+        _fitSoon();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
