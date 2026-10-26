@@ -32,7 +32,7 @@ class SupabaseChatGateway implements ChatGatewayInterface {
       "id": message.id,
       "message": message.message,
       "username": message.username,
-      "created_at": DateTime.now().toString(),
+      "created_at": DateTime.now().toUtc().toIso8601String(),
       "user_id": user.userId,
       "avatar_url": message.avatarUrl,
     });
@@ -74,7 +74,11 @@ class SupabaseChatGateway implements ChatGatewayInterface {
         final messageText = row['message'] as String? ?? '';
         final avatarUrl = row["avatar_url"] as String? ?? "";
 
-        return Message(messageText, username).withAvatarUrl(avatarUrl);
+        return Message(messageText, username)
+            .withAvatarUrl(avatarUrl)
+            .withCreatedAt(
+              DateTime.tryParse(row['created_at']?.toString() ?? '')?.toLocal(),
+            );
       }).toList();
 
       controller.add(messages);
@@ -117,7 +121,7 @@ class SupabaseChatGateway implements ChatGatewayInterface {
         .from("message")
         .update({
           "message": newMessage.message,
-          "updated_at": DateTime.now().toString(),
+          "updated_at": DateTime.now().toUtc().toIso8601String(),
         })
         .eq("id", chatUuid);
   }

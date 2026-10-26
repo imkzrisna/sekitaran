@@ -69,6 +69,7 @@ class ChatBubble extends StatelessWidget {
     required this.mine,
     required this.firstInGroup,
     required this.lastInGroup,
+    this.createdAt,
   });
 
   static const _avatar = 36.0;
@@ -80,6 +81,7 @@ class ChatBubble extends StatelessWidget {
   final bool mine;
   final bool firstInGroup;
   final bool lastInGroup;
+  final DateTime? createdAt;
 
   Widget _bubble() {
     const big = Radius.circular(18);
@@ -120,14 +122,18 @@ class ChatBubble extends StatelessWidget {
                 ),
               ),
             ),
-          SelectableText(
-            text,
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              height: 1.4,
-              color: mine ? Colors.white : ChatColors.ink,
+          _CollapsibleText(text: text, mine: mine),
+          if (lastInGroup && createdAt != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _hhmm(createdAt!),
+                style: GoogleFonts.poppins(
+                  fontSize: 10.5,
+                  color: mine ? Colors.white60 : ChatColors.grey,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -171,3 +177,67 @@ class ChatBubble extends StatelessWidget {
     );
   }
 }
+
+/// Teks pesan: pesan panjang dipotong 8 baris dengan tombol selengkapnya.
+class _CollapsibleText extends StatefulWidget {
+  const _CollapsibleText({required this.text, required this.mine});
+
+  final String text;
+  final bool mine;
+
+  @override
+  State<_CollapsibleText> createState() => _CollapsibleTextState();
+}
+
+class _CollapsibleTextState extends State<_CollapsibleText> {
+  static const _maxLines = 8;
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.mine ? Colors.white : ChatColors.ink;
+    final style = GoogleFonts.poppins(fontSize: 14, height: 1.4, color: color);
+
+    return LayoutBuilder(
+      builder: (context, c) {
+        final painter = TextPainter(
+          text: TextSpan(text: widget.text, style: style),
+          textDirection: Directionality.of(context),
+          maxLines: _maxLines,
+        )..layout(maxWidth: c.maxWidth);
+        final overflows = painter.didExceedMaxLines;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SelectableText(
+              widget.text,
+              style: style,
+              maxLines: (!overflows || _expanded) ? null : _maxLines,
+            ),
+            if (overflows)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    _expanded ? 'Tutup' : 'Baca selengkapnya',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: widget.mine ? Colors.white70 : ChatColors.accent,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+String _hhmm(DateTime d) =>
+    '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';

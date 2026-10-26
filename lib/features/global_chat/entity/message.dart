@@ -5,11 +5,18 @@ class Message {
   String username;
   String message;
   String avatarUrl = "";
+  DateTime? createdAt;
 
   new(this.message, this.username);
 
   Message withId(String uuidString) {
     id = uuidString;
+
+    return this;
+  }
+
+  Message withCreatedAt(DateTime? createdAt) {
+    this.createdAt = createdAt;
 
     return this;
   }
