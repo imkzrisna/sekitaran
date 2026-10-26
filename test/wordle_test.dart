@@ -4,7 +4,6 @@ import 'package:sekitaran/features/wordle/wordle_status.dart';
 import 'package:sekitaran/features/wordle/vo/green_char.dart';
 import 'package:sekitaran/features/wordle/vo/yellow_char.dart';
 import 'package:sekitaran/features/wordle/vo/grey_char.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   test("when guess is incorrect, should be in incorrect state", () {
