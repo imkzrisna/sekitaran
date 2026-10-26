@@ -1,17 +1,15 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:sekitaran/features/wordle/service/lying_down_detector.dart';
 import 'package:sekitaran/features/wordle/vo/char_result.dart';
 import 'package:sekitaran/features/wordle/vo/green_char.dart';
 import 'package:sekitaran/features/wordle/vo/wordle_guess_result.dart';
 import 'package:sekitaran/features/wordle/vo/yellow_char.dart';
-import 'package:sekitaran/features/wordle/widget/game_status.dart'
-    show GameStatus;
+import 'package:sekitaran/features/wordle/widget/game_status.dart';
 import 'package:sekitaran/features/wordle/widget/letter_tile.dart'
     show TileState, WordleColors;
-import 'package:sekitaran/features/wordle/widget/lying_down_overlay.dart';
 import 'package:sekitaran/features/wordle/widget/wordle_board.dart';
 import 'package:sekitaran/features/wordle/widget/wordle_keyboard.dart';
 import 'package:sekitaran/features/wordle/wordle_instance.dart';
@@ -28,8 +26,12 @@ class WordlePage extends StatefulWidget {
 class _WordlePageState extends State<WordlePage> {
   static const _maxTries = 6;
   static const _wordLength = 5;
+  static const _tileGap = 6.0;
 
-  // Word list for the game
+  /// Tinggi tetap area tombol Tebak + petunjuk (atau kotak hasil).
+  static const _slotHeight = 128.0;
+
+  // Word list for the game (kata + petunjuk ada di wordle_words.dart)
   static final _words = kWordleHints.keys.toList();
 
   late final WordleInstance _instance;
@@ -38,28 +40,12 @@ class _WordlePageState extends State<WordlePage> {
 
   String _current = ''; // huruf yang sedang diketik
   String? _error;
-
-  LyingDownDetector? _detector;
-  bool _isLyingDown = false;
+  bool _showHint = true; // petunjuk aktif atau mati
 
   @override
   void initState() {
     super.initState();
     _initGame();
-    _detector = LyingDownDetector(
-      onLyingDownChanged: (lyingDown) {
-        if (mounted) {
-          setState(() => _isLyingDown = lyingDown);
-        }
-      },
-    );
-    _detector!.startListening();
-  }
-
-  @override
-  void dispose() {
-    _detector?.dispose();
-    super.dispose();
   }
 
   void _initGame() {
@@ -162,90 +148,55 @@ class _WordlePageState extends State<WordlePage> {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            IconButton(
-                              onPressed: () => Navigator.of(context).maybePop(),
-                              padding: EdgeInsets.zero,
-                              alignment: Alignment.centerLeft,
-                              constraints: const BoxConstraints(
-                                minWidth: 40,
-                                minHeight: 40,
-                              ),
-                              icon: const Icon(
-                                Icons.arrow_back_ios_new,
-                                size: 20,
-                                color: WordleColors.correct,
-                              ),
+            child: LayoutBuilder(
+              builder: (context, c) {
+                // Layar pendek: header dipadatkan, legenda disembunyikan.
+                final compact = c.maxHeight < 700;
+                return Padding(
+                  padding: EdgeInsets.fromLTRB(24, compact ? 4 : 8, 24, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _header(compact),
+                      SizedBox(height: compact ? 6 : 10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: _subtitleRow(),
+                      ),
+                      if (!compact) ...[
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: _legend(),
+                        ),
+                      ],
+                      SizedBox(height: compact ? 4 : 10),
+                      Expanded(child: _boardArea()),
+                      SizedBox(
+                        height: 22,
+                        child: Center(
+                          child: Text(
+                            _error ?? '',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.red.shade700,
                             ),
-                            const SizedBox(height: 12),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _title(),
-                                  const SizedBox(height: 10),
-                                  _subtitle(),
-                                  const SizedBox(height: 12),
-                                  _legend(),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            WordleBoard(
-                              history: _lastResult?.history ?? [],
-                              currentGuess: _current,
-                              maxGuesses: _maxTries,
-                              wordLength: _wordLength,
-                            ),
-                            SizedBox(
-                              height: 28,
-                              child: Center(
-                                child: Text(
-                                  _error ?? '',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    color: Colors.red.shade700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            _gameStatus(),
-                            const SizedBox(height: 12),
-                            _hintCard(),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                      child: WordleKeyboard(
+                      SizedBox(height: _slotHeight, child: _statusSlot()),
+                      const SizedBox(height: 8),
+                      WordleKeyboard(
                         onLetter: _onLetter,
                         onBackspace: _onBackspace,
                         keyStates: _keyStates(),
                         enabled: !_isGameOver,
+                        keyHeight: compact ? 44 : 50,
                       ),
-                    ),
-                  ],
-                ),
-                if (_isLyingDown)
-                  LyingDownOverlay(
-                    onDismiss: () {
-                      _detector?.resetOrientation();
-                    },
+                    ],
                   ),
-              ],
+                );
+              },
             ),
           ),
         ),
@@ -253,47 +204,167 @@ class _WordlePageState extends State<WordlePage> {
     );
   }
 
-  Widget _gameStatus() {
-    final used = _lastResult?.history.length ?? 0;
-    final status = _lastResult?.status ?? WordleStatus.incorrect;
-    return GameStatus(
-      status: status,
-      triesLeft: _maxTries - used,
-      correctWord: _isGameOver && status == WordleStatus.outOfTries
-          ? _instance.correctWord
-          : null,
-      onRetry: _isGameOver ? _retryGame : null,
-      onSubmit: _isGameOver ? null : _onEnter,
-      canSubmit: _current.length == _wordLength,
+  Widget _backButton() {
+    return IconButton(
+      onPressed: () => Navigator.of(context).maybePop(),
+      padding: EdgeInsets.zero,
+      alignment: Alignment.centerLeft,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      icon: const Icon(
+        Icons.arrow_back_ios_new,
+        size: 20,
+        color: WordleColors.correct,
+      ),
     );
   }
 
-  Widget _hintCard() {
-    final hint = kWordleHints[_instance.correctWord.toLowerCase()];
-    if (hint == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: 'Petunjuk : ',
-              style: GoogleFonts.poppins(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                color: WordleColors.ink,
-              ),
-            ),
-            TextSpan(
-              text: hint,
-              style: GoogleFonts.poppins(
-                fontSize: 13.5,
-                color: WordleColors.grey,
-              ),
-            ),
-          ],
+  Widget _header(bool compact) {
+    if (compact) {
+      return Row(
+        children: [_backButton(), const SizedBox(width: 12), _title()],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _backButton(),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: _title(),
         ),
-        style: const TextStyle(height: 1.5),
+      ],
+    );
+  }
+
+  /// Papan mengisi sisa tinggi; ukuran kotak mengikuti ruang yang tersedia.
+  Widget _boardArea() {
+    return LayoutBuilder(
+      builder: (context, c) {
+        final byWidth =
+            (c.maxWidth - _tileGap * (_wordLength - 1)) / _wordLength;
+        final byHeight = (c.maxHeight - _tileGap * (_maxTries - 1)) / _maxTries;
+        final size = min(byWidth, byHeight).clamp(24.0, 56.0).toDouble();
+        return Center(
+          // Jaga-jaga bila ruang lebih kecil dari ukuran minimum.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: WordleBoard(
+              history: _lastResult?.history ?? [],
+              currentGuess: _current,
+              maxGuesses: _maxTries,
+              wordLength: _wordLength,
+              tileSize: size,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _statusSlot() {
+    final status = _lastResult?.status ?? WordleStatus.incorrect;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GameStatus(
+          status: status,
+          correctWord: _isGameOver && status == WordleStatus.outOfTries
+              ? _instance.correctWord
+              : null,
+          onRetry: _isGameOver ? _retryGame : null,
+          onSubmit: _isGameOver ? null : _onEnter,
+          canSubmit: _current.length == _wordLength,
+        ),
+        if (!_isGameOver) _hintLine(),
+      ],
+    );
+  }
+
+  Widget _hintLine() {
+    final hint = kWordleHints[_instance.correctWord.toLowerCase()];
+    final visible = _showHint && hint != null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 180),
+        opacity: visible ? 1 : 0,
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'Petunjuk : ',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: WordleColors.ink,
+                ),
+              ),
+              TextSpan(
+                text: hint ?? '',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: WordleColors.grey,
+                ),
+              ),
+            ],
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(height: 1.4),
+        ),
+      ),
+    );
+  }
+
+  Widget _subtitleRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Flexible(child: _subtitle()),
+        const SizedBox(width: 7),
+        _hintToggle(),
+      ],
+    );
+  }
+
+  /// Tombol lingkaran: hijau + lampu menyala = petunjuk aktif.
+  Widget _hintToggle() {
+    final on = _showHint;
+    return Tooltip(
+      message: on ? 'Petunjuk aktif' : 'Petunjuk mati',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _showHint = !_showHint);
+        },
+        // Padding memperbesar area ketuk menjadi 48 tanpa mengubah tampilan.
+        child: Padding(
+          padding: const EdgeInsets.all(5),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: on ? WordleColors.correct : Colors.white,
+              border: Border.all(
+                color: on ? WordleColors.correct : WordleColors.tileBorder,
+                width: 1.5,
+              ),
+            ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 150),
+              child: Icon(
+                on ? Icons.lightbulb : Icons.lightbulb_outline,
+                key: ValueKey(on),
+                size: 20,
+                color: on ? Colors.white : WordleColors.grey,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -338,7 +409,7 @@ class _WordlePageState extends State<WordlePage> {
       child: Text(
         'Tebak kata lima huruf dengan batas 6 kali',
         style: GoogleFonts.poppins(
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: FontWeight.w500,
           color: WordleColors.ink,
         ),

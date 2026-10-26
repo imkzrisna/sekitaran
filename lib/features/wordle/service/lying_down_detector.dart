@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:flutter/foundation.dart';
 
 class LyingDownDetector {
   // Toggle to enable/disable all debug print statements
@@ -43,28 +44,31 @@ class LyingDownDetector {
     _roll = 0;
     _lastTimestamp = null;
 
-    if (debugLogging) print('[GyroDetector] Starting gyroscope stream...');
+    if (debugLogging) debugPrint('[GyroDetector] Starting gyroscope stream...');
     _subscription =
-        gyroscopeEventStream(samplingPeriod: const Duration(milliseconds: 50))
-            .listen(
-              _onGyroscopeEvent,
-              onError: (error) {
-                if (debugLogging) print('[GyroDetector] Stream ERROR: $error');
-                stopListening();
-              },
-              onDone: () {
-                if (debugLogging) print('[GyroDetector] Stream DONE (closed)');
-                stopListening();
-              },
-              cancelOnError: true,
-            );
+        gyroscopeEventStream(
+          samplingPeriod: const Duration(milliseconds: 50),
+        ).listen(
+          _onGyroscopeEvent,
+          onError: (error) {
+            if (debugLogging) debugPrint('[GyroDetector] Stream ERROR: $error');
+            stopListening();
+          },
+          onDone: () {
+            if (debugLogging) debugPrint('[GyroDetector] Stream DONE (closed)');
+            stopListening();
+          },
+          cancelOnError: true,
+        );
 
-    if (debugLogging)
-      print(
+    if (debugLogging) {
+      debugPrint(
         '[GyroDetector] Stream subscription created: ${_subscription != null}',
       );
-    if (debugLogging)
-      print('[GyroDetector] Started listening (gyroscope-only)');
+    }
+    if (debugLogging) {
+      debugPrint('[GyroDetector] Started listening (gyroscope-only)');
+    }
   }
 
   void stopListening() {
@@ -74,12 +78,12 @@ class LyingDownDetector {
     _debounceTimer = null;
     _debounceTarget = null;
     _lastTimestamp = null;
-    if (debugLogging) print('[GyroDetector] Stopped listening');
+    if (debugLogging) debugPrint('[GyroDetector] Stopped listening');
   }
 
   void _onGyroscopeEvent(GyroscopeEvent event) {
     if (debugLogging) {
-      print(
+      debugPrint(
         '[GyroDetector] _onGyroscopeEvent called: x=${event.x.toStringAsFixed(2)}, y=${event.y.toStringAsFixed(2)}, z=${event.z.toStringAsFixed(2)}',
       );
     }
@@ -108,7 +112,7 @@ class LyingDownDetector {
         _roll = 0;
         _yaw = 0;
         if (debugLogging) {
-          print(
+          debugPrint(
             '[GyroDetector] High angular speed detected (${angularSpeed.toStringAsFixed(2)}), resetting orientation',
           );
         }
@@ -124,14 +128,14 @@ class LyingDownDetector {
         _pitch.abs() > _lyingThreshold || _roll.abs() > _lyingThreshold;
 
     if (debugLogging) {
-      print(
+      debugPrint(
         '[GyroDetector] currentlyLyingDown=$currentlyLyingDown (pitch=${_pitch.toStringAsFixed(2)}, roll=${_roll.toStringAsFixed(2)}, threshold=$_lyingThreshold)',
       );
     }
 
     // Console logging for every event
     if (debugLogging) {
-      print(
+      debugPrint(
         '[GyroDetector] pitch=${_pitch.toStringAsFixed(2)}, '
         'roll=${_roll.toStringAsFixed(2)}, '
         'yaw=${_yaw.toStringAsFixed(2)}, '
@@ -147,7 +151,7 @@ class LyingDownDetector {
     // If already debouncing toward this same target, do nothing
     if (_debounceTarget == currentlyLyingDown) {
       if (debugLogging) {
-        print(
+        debugPrint(
           '[GyroDetector] Already debouncing toward $currentlyLyingDown, ignoring',
         );
       }
@@ -159,7 +163,7 @@ class LyingDownDetector {
       _debounceTimer?.cancel();
       _debounceTarget = null;
       if (debugLogging) {
-        print(
+        debugPrint(
           '[GyroDetector] No state change needed: currentlyLyingDown=$currentlyLyingDown == _isLyingDown=$_isLyingDown',
         );
       }
@@ -169,7 +173,7 @@ class LyingDownDetector {
     _debounceTimer?.cancel();
     _debounceTarget = currentlyLyingDown;
     if (debugLogging) {
-      print(
+      debugPrint(
         '[GyroDetector] Debounce started: currentlyLyingDown=$currentlyLyingDown, _isLyingDown=$_isLyingDown, waiting ${_debounceDuration.inSeconds}s...',
       );
     }
@@ -177,7 +181,7 @@ class LyingDownDetector {
       _isLyingDown = currentlyLyingDown;
       _debounceTarget = null;
       if (debugLogging) {
-        print(
+        debugPrint(
           '[GyroDetector] STATE CHANGED: lyingDown=$_isLyingDown (callback will fire)',
         );
       }
@@ -205,7 +209,7 @@ class LyingDownDetector {
     _debounceTimer = null;
     _debounceTarget = null;
     onOrientationChanged?.call(0, 0, 0);
-    if (debugLogging) print('[GyroDetector] Manual orientation reset');
+    if (debugLogging) debugPrint('[GyroDetector] Manual orientation reset');
   }
 
   void dispose() {

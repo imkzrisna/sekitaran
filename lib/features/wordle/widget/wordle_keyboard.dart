@@ -11,6 +11,7 @@ class WordleKeyboard extends StatelessWidget {
     required this.onBackspace,
     this.keyStates = const {},
     this.enabled = true,
+    this.keyHeight = 52,
   });
 
   static const _row1 = 'QWERTYUIOP';
@@ -24,6 +25,7 @@ class WordleKeyboard extends StatelessWidget {
   /// Huruf kapital -> status terbaik huruf itu dari semua tebakan.
   final Map<String, TileState> keyStates;
   final bool enabled;
+  final double keyHeight;
 
   Widget _key({
     required int flex,
@@ -41,7 +43,10 @@ class WordleKeyboard extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(6),
             onTap: enabled ? onTap : null,
-            child: SizedBox(height: 52, child: Center(child: child)),
+            child: SizedBox(
+              height: keyHeight,
+              child: Center(child: child),
+            ),
           ),
         ),
       ),
