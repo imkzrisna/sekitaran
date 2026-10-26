@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:sekitaran/features/global_chat/adapter/session_manager/session_manager_interface.dart';
 import 'package:sekitaran/features/global_chat/vo/auth_session.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,7 +14,22 @@ class SupabaseSessionManager implements SessionManagerInterface {
   );
 
   @override
-  AuthSession? get currentSession => _currentSession;
+  AuthSession? get currentSession => _currentSession ?? _fromClient();
+
+  AuthSession? _fromClient() {
+    final s = client.auth.currentSession;
+    if (s == null) return null;
+    final exp = s.expiresAt;
+    return AuthSession(
+      userId: s.user.id,
+      email: s.user.email ?? '',
+      accessToken: s.accessToken,
+      refreshToken: s.refreshToken ?? '',
+      expiresAt: exp == null
+          ? DateTime.now()
+          : DateTime.fromMillisecondsSinceEpoch(exp * 1000),
+    );
+  }
 
   @override
   Stream<AuthSession?> get sessionChanges => _sessionController.stream;

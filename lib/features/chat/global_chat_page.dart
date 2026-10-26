@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sekitaran/features/auth/entity/user_profile.dart';
+import 'package:sekitaran/features/auth/auth_service.dart';
+import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:sekitaran/features/auth/persistence/user_profile_repository/supabase_user_profile_repository.dart';
 import 'package:sekitaran/features/chat/widget/owned_chat.dart';
 import 'package:sekitaran/features/chat/widget/unowned_chat.dart';
@@ -27,7 +29,8 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
   late SupabaseSessionManager _session;
   late ChatService _service;
 
-  late UserProfile? _currentUser;
+  UserProfile? _currentUser;
+  bool _roleBlocked = false;
 
   final messageController = TextEditingController();
 
@@ -36,12 +39,14 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
   }
 
   Future<void> _initAsync() async {
-    await _session.signInWithPasswordAsync(
-      email: "124240154@student.upnyk.ac.id",
-      password: "sayakurangtawu3",
-    );
-
     if (!_isLoggedIn()) return;
+
+    final profile = await AuthService.instance.fetchMyProfile();
+    final role = profile?['role'];
+    if (role == null || role == 'business') {
+      _roleBlocked = true;
+      return;
+    }
 
     _currentUser = await _userProfile.getByIdAsync(
       _session.currentSession!.userId,
@@ -58,6 +63,55 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
     _initAsyncFuture = _initAsync();
   }
 
+  Widget _restricted() {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, size: 30, color: Color(0xFF7A7A7A)),
+            SizedBox(height: 8),
+            Text(
+              'Global chat is only available for regular users.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Color(0xFF7A7A7A)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _loginRequired() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.lock_outline, size: 30, color: Color(0xFF7A7A7A)),
+          const SizedBox(height: 8),
+          const Text(
+            'Please log in to join the chat.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF7A7A7A)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LoginPage()),
+              (_) => false,
+            ),
+            child: const Text(
+              'Go to login',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: _green,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -68,31 +122,41 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
           body: FutureBuilder(
             future: _initAsyncFuture,
             builder: (context, snapshot) {
-              final chatlist = _service.chatList;
-
-              if (chatlist == null) {
-                return SizedBox.expand(
-                  child: Center(child: Text("you are not logged in!")),
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Center(
+                  child: CircularProgressIndicator(color: _green),
                 );
+              }
+              if (_roleBlocked) return _restricted();
+              final chatlist = _service.chatList;
+              if (chatlist == null || _currentUser == null) {
+                return _loginRequired();
               }
 
               return StreamBuilder(
                 stream: chatlist,
                 builder: (context, messageSnapshot) {
                   if (_session.currentSession == null) {
-                    return SizedBox.expand(
-                      child: Center(child: Text("you are not logged in!")),
+                    return _loginRequired();
+                  }
+                  if (messageSnapshot.hasError) {
+                    return const Center(
+                      child: Text('Could not load messages.'),
                     );
                   }
-
-                  final messages = messageSnapshot.data!;
+                  final messages = messageSnapshot.data;
+                  if (messages == null) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: _green),
+                    );
+                  }
 
                   return SizedBox.expand(
                     child: Padding(
                       padding: EdgeInsets.all(10),
                       child: Column(
                         children: [
-                          messages.isEmpty || messageSnapshot.data == null
+                          messages.isEmpty
                               ? Center(child: Text("belum ada pesan!"))
                               : Expanded(
                                   child: ListView.builder(
