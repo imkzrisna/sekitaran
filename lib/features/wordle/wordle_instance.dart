@@ -34,7 +34,17 @@ class WordleInstance {
   }
 
   WordleGuessResult guess(String word) {
+    // Do not accept additional guesses after the game ends.
+    if (_guessCount >= 6) {
+      return WordleGuessResult(
+        WordleStatus.outOfTries,
+        [],
+        history: List.from(_history),
+      );
+    }
+
     _guessCount++;
+
     if (word != _correctWord) {
       final List<CharResult> charResults = [];
       final correctChars = _correctWord.split('');
@@ -66,11 +76,14 @@ class WordleInstance {
         history: List.from(_history),
       );
     }
+
     final charResults = _correctWord
         .split('')
         .map((c) => GreenChar(c))
         .toList();
+
     _history.add(charResults);
+
     return WordleGuessResult(
       WordleStatus.correct,
       charResults,
