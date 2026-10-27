@@ -7,6 +7,7 @@ import 'package:sekitaran/features/auth/create_account_page.dart';
 import 'package:sekitaran/features/onboarding/role_selection_page.dart';
 import 'package:sekitaran/features/home/business_home_page.dart';
 import 'package:sekitaran/features/home/regular_home_page.dart';
+import 'package:sekitaran/features/store/offline/offline_stores_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -536,6 +537,36 @@ class _LoginPageState extends State<LoginPage> {
 
                     const SizedBox(height: 18),
                     Center(child: _googleButton()),
+
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const OfflineStoresPage(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.offline_pin_outlined),
+                        label: Text(
+                          'Lihat Toko Tersimpan',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _green,
+                          side: const BorderSide(color: _green),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                        ),
+                      ),
+                    ),
 
                     const SizedBox(height: 28),
                     Center(
