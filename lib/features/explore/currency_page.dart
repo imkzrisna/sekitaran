@@ -13,6 +13,8 @@ import 'package:sekitaran/core/location_error_view.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/shop_detail_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
+import 'package:sekitaran/features/store/offline/saved_places_page.dart';
+import 'package:sekitaran/features/store/offline/offline_store_service.dart';
 
 class _Rate {
   const _Rate(this.code, this.foreign, this.idr, this.fee);
@@ -60,7 +62,6 @@ class _CurrencyPageState extends State<CurrencyPage>
   String? _error;
   bool _loading = false;
   String? _code;
-  bool _open = false;
   final _mapCtl = MapController();
   bool _mapReady = false;
   bool _locating = false;
@@ -72,6 +73,11 @@ class _CurrencyPageState extends State<CurrencyPage>
   LatLng _to = const LatLng(0, 0);
   double _z0 = 13;
   double _z1 = 13;
+
+  // Offline
+  final _offline = OfflineStoreService.instance;
+  final Set<String> _saving = {};
+  final Set<String> _updatable = {};
 
   @override
   void initState() {
@@ -86,6 +92,62 @@ class _CurrencyPageState extends State<CurrencyPage>
     _anim.dispose();
     _mapCtl.dispose();
     super.dispose();
+  }
+
+  // ---------- Offline ----------
+
+  Future<void> _checkUpdates() async {
+    final ids = [
+      for (final c in _changers)
+        if (_offline.isStoreAvailableOffline(c.shop.id)) c.shop.id,
+    ];
+    for (final id in ids) {
+      final r = await _offline.checkForUpdate(id);
+      if (!mounted) return;
+      setState(() {
+        if (r == true) {
+          _updatable.add(id);
+        } else {
+          _updatable.remove(id);
+        }
+      });
+    }
+  }
+
+  Future<void> _saveOffline(Shop shop) async {
+    final wasUpdate = _updatable.contains(shop.id);
+    if (_saving.contains(shop.id) ||
+        (_offline.isStoreAvailableOffline(shop.id) && !wasUpdate)) {
+      return;
+    }
+    setState(() => _saving.add(shop.id));
+    try {
+      await _offline.savePublicStoreForOffline(shop.id);
+      if (!mounted) return;
+      setState(() => _updatable.remove(shop.id));
+      _snack(
+        wasUpdate
+            ? 'Data ${shop.name} berhasil diperbarui.'
+            : 'Toko ${shop.name} berhasil disimpan untuk offline.',
+      );
+    } on OfflineStoreFailure catch (e) {
+      if (mounted) _snack(e.message);
+    } catch (_) {
+      if (mounted) {
+        _snack('Gagal menyimpan toko offline. Coba lagi saat online.');
+      }
+    } finally {
+      if (mounted) setState(() => _saving.remove(shop.id));
+    }
+  }
+
+  Future<void> _openOfflineStores() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const SavedPlacesPage()));
+    if (mounted) {
+      setState(() {});
+      _checkUpdates();
+    }
   }
 
   // ---------- Data ----------
@@ -188,6 +250,7 @@ class _CurrencyPageState extends State<CurrencyPage>
         }
       });
       _fitSoon();
+      _checkUpdates();
     } on TimeoutException {
       if (mounted) setState(() => _error = 'Could not get your location.');
     } on String catch (m) {
@@ -281,7 +344,7 @@ class _CurrencyPageState extends State<CurrencyPage>
     return (v == null || v <= 0) ? null : v;
   }
 
-  /// Toko yang punya mata uang terpilih, terdekat ke terjauh (tanpa batas).
+  /// Toko yang punya mata uang terpilih, terdekat ke terjauh.
   List<_Entry> _entries(LatLng here) {
     final code = _code;
     if (code == null) return const [];
@@ -299,6 +362,14 @@ class _CurrencyPageState extends State<CurrencyPage>
     return list;
   }
 
+  _Entry _best(List<_Entry> entries) {
+    var best = entries.first;
+    for (final e in entries) {
+      if (e.rate.perUnit > best.rate.perUnit) best = e;
+    }
+    return best;
+  }
+
   String _idr(double v) {
     final s = v < 100 ? v.toStringAsFixed(2) : v.round().toString();
     final parts = s.split('.');
@@ -311,7 +382,24 @@ class _CurrencyPageState extends State<CurrencyPage>
     return 'Rp $b${parts.length > 1 ? ',${parts[1]}' : ''}';
   }
 
-  // ---------- UI ----------
+  // ---------- Komponen dasar ----------
+
+  Widget _underlined(String text, {double size = 16}) {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 2),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.poppins(
+          fontSize: size,
+          fontWeight: FontWeight.w600,
+          color: _ink,
+        ),
+      ),
+    );
+  }
 
   Widget _title() {
     return FittedBox(
@@ -365,31 +453,22 @@ class _CurrencyPageState extends State<CurrencyPage>
     );
   }
 
-  Widget _heading(String text, IconData icon) => Padding(
-    padding: const EdgeInsets.only(top: 32, bottom: 12),
-    child: Row(
-      children: [
-        Flexible(
-          child: Container(
-            padding: const EdgeInsets.only(bottom: 2),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
-            ),
-            child: Text(
-              text,
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: _ink,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Icon(icon, color: _green, size: 22),
-      ],
-    ),
-  );
+  Widget _heading(String text, IconData icon, {Widget? trailing}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 32),
+      child: Row(
+        children: [
+          if (trailing != null)
+            _underlined(text)
+          else
+            Flexible(child: _underlined(text)),
+          const SizedBox(width: 6),
+          Icon(icon, color: _green, size: 22),
+          if (trailing != null) ...[const Spacer(), trailing],
+        ],
+      ),
+    );
+  }
 
   InputDecoration _deco(String label) {
     OutlineInputBorder ob(Color c, [double w = 1]) => OutlineInputBorder(
@@ -407,118 +486,40 @@ class _CurrencyPageState extends State<CurrencyPage>
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      prefixIcon: const Icon(Icons.payments_outlined, color: _green, size: 20),
       border: ob(_border.withValues(alpha: 0.6)),
       enabledBorder: ob(_border.withValues(alpha: 0.6)),
       focusedBorder: ob(_green, 1.4),
     );
   }
 
-  Widget _currencyField(List<String> codes) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: codes.isEmpty ? null : () => setState(() => _open = !_open),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        height: 56,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: _open ? _green : _border.withValues(alpha: 0.6),
-            width: _open ? 1.4 : 1,
+  Widget _codeBadge() {
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: _green,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.currency_exchange, size: 18, color: Colors.white),
+          const SizedBox(width: 8),
+          Text(
+            _code ?? '-',
+            style: GoogleFonts.poppins(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                _code ?? '-',
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: _ink,
-                ),
-              ),
-            ),
-            AnimatedRotation(
-              turns: _open ? 0.5 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: const Icon(Icons.keyboard_arrow_down, color: _grey),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _codePanel(List<String> codes) {
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      alignment: Alignment.topCenter,
-      child: !_open
-          ? const SizedBox(width: double.infinity)
-          : Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.all(12),
-              constraints: const BoxConstraints(maxHeight: 180),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _border.withValues(alpha: 0.7)),
-              ),
-              child: SingleChildScrollView(
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final c in codes)
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          setState(() {
-                            _code = c;
-                            _open = false;
-                          });
-                          _fitSoon();
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 160),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: c == _code ? _green : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: c == _code ? _green : _border,
-                              width: 1.2,
-                            ),
-                          ),
-                          child: Text(
-                            c,
-                            style: GoogleFonts.poppins(
-                              fontSize: 12.5,
-                              fontWeight: c == _code
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: c == _code ? Colors.white : _ink,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-    );
-  }
-
   Widget _input() {
-    final codes = _codes;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -535,11 +536,15 @@ class _CurrencyPageState extends State<CurrencyPage>
                 decoration: _deco('Amount'),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(child: _currencyField(codes)),
+            const SizedBox(width: 14),
+            _codeBadge(),
           ],
         ),
-        _codePanel(codes),
+        const SizedBox(height: 8),
+        Text(
+          'Pick the currency from the list below',
+          style: GoogleFonts.poppins(fontSize: 11.5, color: _grey),
+        ),
       ],
     );
   }
@@ -548,59 +553,100 @@ class _CurrencyPageState extends State<CurrencyPage>
     final amt = _amountValue;
     String big = '-';
     String sub = 'Enter an amount to convert.';
+    var star = false;
     if (_code != null && entries.isEmpty) {
       sub = 'No money changer lists $_code yet.';
     } else if (amt != null && entries.isNotEmpty) {
       final best = _best(entries);
       big = _idr(amt * best.rate.perUnit);
       sub = 'Best rate at ${best.changer.shop.name}';
+      star = true;
     }
     final amtText = _amount.text.trim().isEmpty ? '-' : _amount.text.trim();
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 22),
-      padding: const EdgeInsets.only(top: 20),
+      margin: const EdgeInsets.only(top: 16),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: _border.withValues(alpha: 0.6))),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$amtText ${_code ?? ''} =',
-            style: GoogleFonts.poppins(fontSize: 13, color: _grey),
+        color: _green,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: _green.withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
-          const SizedBox(height: 2),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: FittedBox(
-              key: ValueKey(big),
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                big,
-                style: GoogleFonts.poppins(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w600,
-                  color: _green,
-                ),
-              ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -8,
+            bottom: -14,
+            child: Icon(
+              Icons.payments_rounded,
+              size: 96,
+              color: Colors.white.withValues(alpha: 0.08),
             ),
           ),
-          const SizedBox(height: 2),
-          Text(sub, style: GoogleFonts.poppins(fontSize: 12.5, color: _grey)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$amtText ${_code ?? ''} =',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: FittedBox(
+                    key: ValueKey(big),
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      big,
+                      style: GoogleFonts.poppins(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    if (star) ...[
+                      const Icon(Icons.star_rounded, size: 16, color: _gold),
+                      const SizedBox(width: 4),
+                    ],
+                    Flexible(
+                      child: Text(
+                        sub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12.5,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  _Entry _best(List<_Entry> entries) {
-    var best = entries.first;
-    for (final e in entries) {
-      if (e.rate.perUnit > best.rate.perUnit) best = e;
-    }
-    return best;
-  }
+  // ---------- Peta ----------
 
   Widget _locateButton() {
     return Material(
@@ -637,12 +683,14 @@ class _CurrencyPageState extends State<CurrencyPage>
   }
 
   Widget _map(LatLng here, List<_Entry> entries) {
+    final showStar = entries.length > 1;
     return Container(
-      height: 240,
+      height: 200,
+      width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _border.withValues(alpha: 0.7)),
       ),
       child: Stack(
         fit: StackFit.expand,
@@ -668,7 +716,7 @@ class _CurrencyPageState extends State<CurrencyPage>
               MarkerLayer(
                 markers: [
                   for (final e in entries)
-                    if (!(entries.length > 1 && e == _best(entries)))
+                    if (!(showStar && e == _best(entries)))
                       Marker(
                         point: e.changer.shop.position,
                         width: 30,
@@ -680,7 +728,7 @@ class _CurrencyPageState extends State<CurrencyPage>
                           size: 30,
                         ),
                       ),
-                  if (entries.length > 1)
+                  if (showStar)
                     Marker(
                       point: _best(entries).changer.shop.position,
                       width: 48,
@@ -733,74 +781,72 @@ class _CurrencyPageState extends State<CurrencyPage>
     );
   }
 
+  // ---------- Daftar money changer ----------
+
   Widget _hint(String t) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 20),
     child: Text(t, style: GoogleFonts.poppins(fontSize: 13, color: _grey)),
   );
 
-  static const _avatarColors = [
-    Color(0xFF5BAA5F),
-    Color(0xFF2F6FED),
-    Color(0xFFC99A4A),
-    Color(0xFFE5484D),
-    Color(0xFF8E5BD9),
-    Color(0xFF1F9E8F),
-  ];
-
-  Widget _pill(IconData icon, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 5),
-          Text(
-            text,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
+  Widget _chip(String code) {
+    final sel = code == _code;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        setState(() => _code = code);
+        _fitSoon();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: sel ? _green : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: sel ? _green : _border, width: 1.2),
+        ),
+        child: Text(
+          code,
+          style: GoogleFonts.poppins(
+            fontSize: 12.5,
+            fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+            color: sel ? Colors.white : _ink,
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _shopAvatar(String name, {required bool best}) {
-    final col = _avatarColors[name.hashCode.abs() % _avatarColors.length];
-    final ch = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
-    return Container(
-      width: 40,
-      height: 40,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: col.withValues(alpha: 0.14),
-        border: best ? Border.all(color: _gold, width: 1.6) : null,
-      ),
-      child: Text(
-        ch,
-        style: GoogleFonts.poppins(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: col,
         ),
       ),
     );
   }
 
-  Widget _card(_Entry e, LatLng here, {required bool best}) {
+  Widget _meta(IconData icon, String text) => Padding(
+    padding: const EdgeInsets.only(top: 3),
+    child: Row(
+      children: [
+        Icon(icon, size: 13, color: _grey),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(fontSize: 11.5, color: _grey),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _row(_Entry e, LatLng here, {required bool best, required bool last}) {
     final amt = _amountValue;
     final fee = e.rate.fee;
-    final name = e.changer.shop.name;
+    final shop = e.changer.shop;
+    final isSaved = _offline.isStoreAvailableOffline(shop.id);
+    final isSaving = _saving.contains(shop.id);
+    final hasUpdate = _updatable.contains(shop.id);
+    final dist = fee == null
+        ? formatDistance(e.meters)
+        : '${formatDistance(e.meters)}  ·  Fee ${_idr(fee)}';
+
     return TweenAnimationBuilder<double>(
-      key: ValueKey('${e.changer.shop.id}_$_code'),
+      key: ValueKey('${shop.id}_$_code'),
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
@@ -816,22 +862,35 @@ class _CurrencyPageState extends State<CurrencyPage>
           HapticFeedback.selectionClick();
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) =>
-                  ShopDetailPage(origin: here, shop: e.changer.shop),
+              builder: (_) => ShopDetailPage(origin: here, shop: shop),
             ),
           );
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: _border.withValues(alpha: 0.4)),
-            ),
+            border: last
+                ? null
+                : Border(
+                    bottom: BorderSide(color: _border.withValues(alpha: 0.45)),
+                  ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _shopAvatar(name, best: best),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _green.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.currency_exchange,
+                  size: 22,
+                  color: _green,
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -841,21 +900,21 @@ class _CurrencyPageState extends State<CurrencyPage>
                       children: [
                         Flexible(
                           child: Text(
-                            name,
+                            shop.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w500,
                               color: _ink,
                             ),
                           ),
                         ),
                         if (best) ...[
-                          const SizedBox(width: 5),
+                          const SizedBox(width: 6),
                           const Icon(
                             Icons.star_rounded,
-                            size: 15,
+                            size: 16,
                             color: _gold,
                           ),
                           const SizedBox(width: 2),
@@ -870,61 +929,84 @@ class _CurrencyPageState extends State<CurrencyPage>
                         ],
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.near_me_outlined,
-                          size: 12,
-                          color: _grey,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            fee == null
-                                ? formatDistance(e.meters)
-                                : '${formatDistance(e.meters)}  ·  Fee ${_idr(fee)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
-                              fontSize: 11.5,
-                              color: _grey,
-                            ),
-                          ),
-                        ),
-                      ],
+                    _meta(
+                      Icons.payments_outlined,
+                      '1 $_code = ${_idr(e.rate.perUnit)}',
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '1 $_code = ${_idr(e.rate.perUnit)}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12.5,
-                              color: _ink,
-                            ),
+                    _meta(Icons.near_me_outlined, dist),
+                    if (hasUpdate)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Text(
+                          'Update available',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: _accent,
                           ),
                         ),
-                        if (amt != null)
-                          Text(
-                            _idr(amt * e.rate.perUnit),
-                            style: GoogleFonts.poppins(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: _green,
-                            ),
-                          ),
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
-              const SizedBox(width: 4),
-              const Padding(
-                padding: EdgeInsets.only(top: 9),
-                child: Icon(Icons.chevron_right, size: 20, color: _grey),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, right: 4),
+                    child: Text(
+                      amt != null
+                          ? _idr(amt * e.rate.perUnit)
+                          : formatDistance(e.meters),
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _green,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
+                        tooltip: hasUpdate
+                            ? 'Perbarui data offline'
+                            : (isSaved
+                                  ? 'Tersimpan offline'
+                                  : 'Simpan untuk offline'),
+                        onPressed: (isSaving || (isSaved && !hasUpdate))
+                            ? null
+                            : () => _saveOffline(shop),
+                        icon: isSaving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(
+                                hasUpdate
+                                    ? Icons.sync_problem_outlined
+                                    : (isSaved
+                                          ? Icons.offline_pin
+                                          : Icons
+                                                .download_for_offline_outlined),
+                                color: hasUpdate
+                                    ? _accent
+                                    : (isSaved ? _green : _grey),
+                              ),
+                      ),
+                      const Icon(Icons.chevron_right, size: 22, color: _grey),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
@@ -953,38 +1035,71 @@ class _CurrencyPageState extends State<CurrencyPage>
       );
     }
     final entries = _entries(here);
+    final codes = _codes;
+    final bestE = entries.length > 1 ? _best(entries) : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 20),
+        _heading('My Location', Icons.my_location),
+        const SizedBox(height: 12),
         _map(here, entries),
         _heading(
-          'Stores offering ${_code ?? ''} within 10 km',
-          Icons.storefront_outlined,
-        ),
-        Row(
-          children: [
-            _pill(
-              Icons.storefront_outlined,
-              '${entries.length} ${entries.length == 1 ? 'store' : 'stores'}',
-              _green,
+          'Money Changers',
+          Icons.currency_exchange,
+          trailing: TextButton.icon(
+            onPressed: _openOfflineStores,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              foregroundColor: _green,
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            if (entries.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              _pill(
-                Icons.near_me,
-                'Nearest ${formatDistance(entries.first.meters)}',
-                _grey,
+            icon: const Icon(Icons.offline_pin_outlined, size: 20),
+            label: Text(
+              'Offline Stores',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
-            ],
-          ],
+            ),
+          ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
+        Text(
+          '${entries.length} within 10 km, nearest first',
+          style: GoogleFonts.poppins(fontSize: 12.5, color: _grey),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Currency',
+          style: GoogleFonts.poppins(fontSize: 13, color: _grey),
+        ),
+        const SizedBox(height: 8),
+        if (codes.isEmpty)
+          _hint('No currency available yet.')
+        else
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (var i = 0; i < codes.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  _chip(codes[i]),
+                ],
+              ],
+            ),
+          ),
+        const SizedBox(height: 8),
         if (entries.isEmpty)
           _hint('No money changer within 10 km offers this currency.')
         else
-          for (final e in entries)
-            _card(e, here, best: entries.length > 1 && e == _best(entries)),
+          for (var i = 0; i < entries.length; i++)
+            _row(
+              entries[i],
+              here,
+              best: bestE != null && entries[i] == bestE,
+              last: i == entries.length - 1,
+            ),
       ],
     );
   }
@@ -1012,8 +1127,8 @@ class _CurrencyPageState extends State<CurrencyPage>
                       const SizedBox(height: 14),
                       _subtitle(),
                       _heading('Convert to Rupiah', Icons.currency_exchange),
+                      const SizedBox(height: 12),
                       _input(),
-                      const SizedBox(height: 14),
                       _result(entries),
                       _stores(),
                     ],
