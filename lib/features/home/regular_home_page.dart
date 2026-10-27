@@ -12,7 +12,7 @@ import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
-import 'package:sekitaran/features/store/offline/offline_stores_page.dart';
+import 'package:sekitaran/features/store/offline/saved_places_page.dart';
 import 'package:sekitaran/features/store/offline/offline_store_service.dart';
 
 class RegularHomePage extends StatefulWidget {
@@ -72,7 +72,7 @@ class _RegularHomePageState extends State<RegularHomePage>
 
   Future<void> _openOfflineStores() async {
     await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const OfflineStoresPage()));
+        .push(MaterialPageRoute(builder: (_) => const SavedPlacesPage()));
     if (mounted) setState(() {});
   }
 
