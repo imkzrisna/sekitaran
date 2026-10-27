@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sekitaran/features/home/user_radial_menu.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -390,15 +391,27 @@ class _CurrencyPageState extends State<CurrencyPage>
     ),
   );
 
-  InputDecoration _deco(String label) => InputDecoration(
-    labelText: label,
-    filled: true,
-    fillColor: Colors.white,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: _border),
-    ),
-  );
+  InputDecoration _deco(String label) {
+    OutlineInputBorder ob(Color c, [double w = 1]) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: c, width: w),
+    );
+    return InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.poppins(fontSize: 13.5, color: _grey),
+      floatingLabelStyle: GoogleFonts.poppins(
+        fontSize: 13.5,
+        color: _green,
+        fontWeight: FontWeight.w500,
+      ),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      border: ob(_border.withValues(alpha: 0.6)),
+      enabledBorder: ob(_border.withValues(alpha: 0.6)),
+      focusedBorder: ob(_green, 1.4),
+    );
+  }
 
   Widget _currencyField(List<String> codes) {
     return GestureDetector(
@@ -410,10 +423,10 @@ class _CurrencyPageState extends State<CurrencyPage>
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: _open ? _green : _border,
-            width: _open ? 1.5 : 1,
+            color: _open ? _green : _border.withValues(alpha: 0.6),
+            width: _open ? 1.4 : 1,
           ),
         ),
         child: Row(
@@ -628,8 +641,8 @@ class _CurrencyPageState extends State<CurrencyPage>
       height: 240,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border.withValues(alpha: 0.7)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border.withValues(alpha: 0.5)),
       ),
       child: Stack(
         fit: StackFit.expand,
@@ -725,31 +738,67 @@ class _CurrencyPageState extends State<CurrencyPage>
     child: Text(t, style: GoogleFonts.poppins(fontSize: 13, color: _grey)),
   );
 
-  Widget _line(String label, String value, {bool bold = false}) => Padding(
-    padding: const EdgeInsets.only(top: 3),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.poppins(fontSize: 12, color: _grey),
+  static const _avatarColors = [
+    Color(0xFF5BAA5F),
+    Color(0xFF2F6FED),
+    Color(0xFFC99A4A),
+    Color(0xFFE5484D),
+    Color(0xFF8E5BD9),
+    Color(0xFF1F9E8F),
+  ];
+
+  Widget _pill(IconData icon, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _shopAvatar(String name, {required bool best}) {
+    final col = _avatarColors[name.hashCode.abs() % _avatarColors.length];
+    final ch = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    return Container(
+      width: 40,
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: col.withValues(alpha: 0.14),
+        border: best ? Border.all(color: _gold, width: 1.6) : null,
+      ),
+      child: Text(
+        ch,
+        style: GoogleFonts.poppins(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: col,
         ),
-        Text(
-          value,
-          style: GoogleFonts.poppins(
-            fontSize: 12.5,
-            fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
-            color: bold ? _green : _ink,
-          ),
-        ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 
   Widget _card(_Entry e, LatLng here, {required bool best}) {
     final amt = _amountValue;
     final fee = e.rate.fee;
+    final name = e.changer.shop.name;
     return TweenAnimationBuilder<double>(
       key: ValueKey('${e.changer.shop.id}_$_code'),
       tween: Tween(begin: 0, end: 1),
@@ -763,58 +812,120 @@ class _CurrencyPageState extends State<CurrencyPage>
         ),
       ),
       child: _Press(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ShopDetailPage(origin: here, shop: e.changer.shop),
-          ),
-        ),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  ShopDetailPage(origin: here, shop: e.changer.shop),
+            ),
+          );
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: _border.withValues(alpha: 0.6)),
+              bottom: BorderSide(color: _border.withValues(alpha: 0.4)),
             ),
           ),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      e.changer.shop.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w600,
-                        color: _ink,
-                      ),
+              _shopAvatar(name, best: best),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _ink,
+                            ),
+                          ),
+                        ),
+                        if (best) ...[
+                          const SizedBox(width: 5),
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 15,
+                            color: _gold,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            'Best rate',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: _gold,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                  if (best) ...[
-                    const SizedBox(width: 8),
-                    const Icon(Icons.star_rounded, size: 15, color: _gold),
-                    const SizedBox(width: 3),
-                    Text(
-                      'Best rate',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: _green,
-                      ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.near_me_outlined,
+                          size: 12,
+                          color: _grey,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            fee == null
+                                ? formatDistance(e.meters)
+                                : '${formatDistance(e.meters)}  ·  Fee ${_idr(fee)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              fontSize: 11.5,
+                              color: _grey,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '1 $_code = ${_idr(e.rate.perUnit)}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12.5,
+                              color: _ink,
+                            ),
+                          ),
+                        ),
+                        if (amt != null)
+                          Text(
+                            _idr(amt * e.rate.perUnit),
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: _green,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
-                  const SizedBox(width: 4),
-                  const Icon(Icons.chevron_right, size: 22, color: _grey),
-                ],
+                ),
               ),
-              const SizedBox(height: 4),
-              _line('Distance', formatDistance(e.meters)),
-              _line('Rate', '1 $_code = ${_idr(e.rate.perUnit)}'),
-              if (fee != null) _line('Service fee', _idr(fee)),
-              if (amt != null)
-                _line('You get', _idr(amt * e.rate.perUnit), bold: true),
+              const SizedBox(width: 4),
+              const Padding(
+                padding: EdgeInsets.only(top: 9),
+                child: Icon(Icons.chevron_right, size: 20, color: _grey),
+              ),
             ],
           ),
         ),
@@ -851,6 +962,24 @@ class _CurrencyPageState extends State<CurrencyPage>
           'Stores offering ${_code ?? ''} within 10 km',
           Icons.storefront_outlined,
         ),
+        Row(
+          children: [
+            _pill(
+              Icons.storefront_outlined,
+              '${entries.length} ${entries.length == 1 ? 'store' : 'stores'}',
+              _green,
+            ),
+            if (entries.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              _pill(
+                Icons.near_me,
+                'Nearest ${formatDistance(entries.first.meters)}',
+                _grey,
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
         if (entries.isEmpty)
           _hint('No money changer within 10 km offers this currency.')
         else
