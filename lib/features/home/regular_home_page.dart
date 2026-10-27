@@ -301,7 +301,10 @@ class _RegularHomePageState extends State<RegularHomePage>
       padding: const EdgeInsets.only(top: 32),
       child: Row(
         children: [
-          Flexible(child: _underlined(text)),
+          if (trailing != null)
+            _underlined(text)
+          else
+            Flexible(child: _underlined(text)),
           const SizedBox(width: 6),
           Icon(icon, color: _green, size: 22),
           if (trailing != null) ...[const Spacer(), trailing],
@@ -615,12 +618,20 @@ class _RegularHomePageState extends State<RegularHomePage>
                       _heading('My Location', Icons.my_location),
                       const SizedBox(height: 12),
                       _mapBox(),
-                      _heading('Nearest Shop', Icons.storefront_outlined),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
+                      _heading(
+                        'Nearest Shop',
+                        Icons.storefront_outlined,
+                        trailing: TextButton.icon(
                           onPressed: _openOfflineStores,
-                          icon: const Icon(Icons.offline_pin_outlined),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 32),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: const Icon(
+                            Icons.offline_pin_outlined,
+                            size: 20,
+                          ),
                           label: const Text('Offline Stores'),
                         ),
                       ),
