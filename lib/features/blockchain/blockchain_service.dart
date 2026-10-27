@@ -69,7 +69,7 @@ class BlockchainService {
 
       _gateway.addBlockAsync(block);
       _transaction.addAsync(
-        Transaction("", userAddress, 0.01, "mining reward"),
+        Transaction("", userAddress!, 0.01, "mining reward"),
       );
     }
 
@@ -112,17 +112,29 @@ class BlockchainService {
     return credit - debit;
   }
 
-  /// Balance of the currently signed-in user (SKT). Resolves the user's wallet
-  /// address from the session and returns credit minus debit. Returns `0.0`
-  /// when there is no session or no wallet address registered, so the dashboard
-  /// never crashes on an empty or unauthenticated state.
   Future<double> getCurrentUserBalanceAsync() async {
     final session = _session.currentSession;
     if (session == null) return 0.0;
 
     final address = await _wallet.getWalletAddressById(session.userId);
+
+    if (address == null) return 0.0;
+
     if (address.isEmpty) return 0.0;
 
     return getBallanceAsync(address);
+  }
+
+  Future<String?> getWalletAddressAsync() async {
+    final session = _session.currentSession;
+    if (session == null) return null;
+
+    final address = await _wallet.getWalletAddressById(session.userId);
+
+    if (address == null) return null;
+
+    if (address.isEmpty) return null;
+
+    return address;
   }
 }

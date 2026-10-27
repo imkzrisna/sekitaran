@@ -17,12 +17,16 @@ class SupabaseWalletGateway {
     });
   }
 
-  Future<String> getWalletAddressById(String userId) async {
+  Future<String?> getWalletAddressById(String userId) async {
     final row = await Supabase.instance.client
         .from("blockchain_wallet")
         .select("address")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
+
+    if (row == null) {
+      return null;
+    }
 
     return row["address"];
   }

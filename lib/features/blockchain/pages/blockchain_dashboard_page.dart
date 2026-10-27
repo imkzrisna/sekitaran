@@ -6,8 +6,10 @@ import 'package:sekitaran/features/blockchain/blockchain_service.dart';
 import 'package:sekitaran/features/blockchain/infrastructure/supabase_blockchain_gateway.dart';
 import 'package:sekitaran/features/blockchain/infrastructure/supabase_transaction_repository.dart';
 import 'package:sekitaran/features/blockchain/infrastructure/supabase_wallet_gateway.dart';
+import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:sekitaran/features/blockchain/pages/create_transaction_page.dart';
 import 'package:sekitaran/features/blockchain/pages/mining_page.dart';
+import 'package:sekitaran/features/blockchain/pages/register_wallet_page.dart';
 import 'package:sekitaran/features/global_chat/adapter/session_manager/supabase_session_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -38,10 +40,13 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
   static const _border = Color(0xFFC9C9C9);
   static const _grey = Color(0xFF7A7A7A);
 
+  late final SupabaseSessionManager _session;
+  late final SupabaseWalletGateway _wallet;
   late final BlockchainService _service;
   bool _loading = true;
   double _balance = 0.0;
   String? _error;
+  bool _hasWallet = false;
   String _username = 'Sekitaran user';
 
   @override
@@ -59,15 +64,15 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
   /// the page works when used directly as the app `home` without an existing
   /// persisted session.
   Future<void> _initDefault() async {
-    final session = SupabaseSessionManager();
+    _session = SupabaseSessionManager();
     final transaction = SupabaseTransactionRepository();
     final gateway = SupabaseBlockChainGateway(1);
-    final wallet = SupabaseWalletGateway();
-    _service = BlockchainService(gateway, transaction, session, wallet);
+    _wallet = SupabaseWalletGateway();
+    _service = BlockchainService(gateway, transaction, _session, _wallet);
 
-    await session.signInWithPasswordAsync(
-      email: "124240154@student.upnyk.ac.id",
-      password: "sayakurangtawu3",
+    await _session.signInWithPasswordAsync(
+      email: "fkrizel24@gmail.com",
+      password: "sayakurangtawu1",
     );
 
     if (!mounted) return;
@@ -82,25 +87,53 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
 
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      final meta = user?.userMetadata?['username'];
+
+      // Requirement: not logged in -> redirect to the login page.
+      if (user == null) {
+        if (!mounted) return;
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginPage()));
+        return;
+      }
+
+      final meta = user.userMetadata?['username'];
       final name = (meta is String && meta.trim().isNotEmpty)
           ? meta.trim()
           : null;
       if (name != null) _username = name;
 
-      final balance = await _service.getCurrentUserBalanceAsync();
+      final address = await _service.getWalletAddressAsync();
       if (!mounted) return;
-      setState(() {
-        _balance = balance;
-        _loading = false;
-      });
+      _hasWallet = address != null && address.isNotEmpty;
+
+      if (_hasWallet) {
+        final balance = await _service.getCurrentUserBalanceAsync();
+        if (!mounted) return;
+        setState(() {
+          _balance = balance;
+          _loading = false;
+        });
+      } else {
+        setState(() => _loading = false);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = "there's an error: " + e.toString();
         _loading = false;
       });
     }
+  }
+
+  Future<void> _registerWallet() async {
+    if (_session.currentSession == null) return;
+
+    await _wallet.registerWallet(_session.currentSession!.userId);
+
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const BlockchainDashboardPage()));
   }
 
   Future<void> _goToMining() async {
@@ -414,6 +447,25 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
     );
   }
 
+  Widget _registerWalletSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _heading(
+          'Wallet',
+          Icons.account_balance_wallet_outlined,
+          caption: 'Register a wallet to start holding and earning SKT.',
+        ),
+        const SizedBox(height: 16),
+        _primaryOutlineButton(
+          label: 'Register Wallet',
+          icon: Icons.add,
+          onPressed: _registerWallet,
+        ),
+      ],
+    );
+  }
+
   Widget _actions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,9 +505,44 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _reveal(index: 0, child: _header()),
-                  _reveal(index: 1, child: _balanceCard()),
-                  _reveal(index: 2, child: _actions()),
+                  if (_loading)
+                    const Center(
+                      child: CircularProgressIndicator(color: _green),
+                    )
+                  else if (_error != null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+                        const SizedBox(height: 28),
+                        Text(
+                          'Error',
+                          style: GoogleFonts.poppins(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.red.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          _error!,
+                          style: GoogleFonts.poppins(fontSize: 15, color: _ink),
+                        ),
+                      ],
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _reveal(index: 0, child: _header()),
+                        if (!_hasWallet)
+                          _reveal(index: 1, child: _registerWalletSection())
+                        else ...[
+                          _reveal(index: 1, child: _balanceCard()),
+                          _reveal(index: 2, child: _actions()),
+                        ],
+                      ],
+                    ),
                 ],
               ),
             ),

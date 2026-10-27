@@ -37,12 +37,7 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
 
   late Future<void> _initStateAsyncFuture;
 
-  Future<void> initStateAsync() async {
-    await _session.signInWithPasswordAsync(
-      email: "krizsna.mz@gmail.com",
-      password: "sayakurangtawu2",
-    );
-  }
+  Future<void> initStateAsync() async {}
 
   @override
   void initState() {
@@ -87,7 +82,7 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
       final giverAddress = await _wallet.getWalletAddressById(user.userId);
       final amount = double.parse(_amountController.text);
 
-      final balance = await _service.getBallanceAsync(giverAddress);
+      final balance = await _service.getBallanceAsync(giverAddress!);
 
       if (amount > balance) {
         if (mounted) setState(() => _submitting = false);
@@ -95,9 +90,15 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
         return;
       }
 
+      if (giverAddress == _receiverController.text.trim()) {
+        if (mounted) setState(() => _submitting = false);
+        _snack('Cannot transfer a wallet into itself');
+        return;
+      }
+
       await _service.addTransactionAsync(
         Transaction(
-          giverAddress,
+          giverAddress!,
           _receiverController.text.trim(),
           amount,
           _memoController.text.trim(),

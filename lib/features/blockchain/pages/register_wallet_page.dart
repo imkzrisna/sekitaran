@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:sekitaran/features/blockchain/blockchain_service.dart';
 import 'package:sekitaran/features/blockchain/infrastructure/supabase_blockchain_gateway.dart';
 import 'package:sekitaran/features/blockchain/infrastructure/supabase_transaction_repository.dart';
@@ -42,6 +41,15 @@ class _RegisterWalletPageState extends State<RegisterWalletPage> {
     _initAsyncFuture = _initAsync();
   }
 
+  void _returnToDashboard() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Wallet registered. Returning to dashboard...'),
+      ),
+    );
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,8 +61,10 @@ class _RegisterWalletPageState extends State<RegisterWalletPage> {
               FilledButton(
                 onPressed: () async {
                   await _wallet.registerWallet(_session.currentSession!.userId);
+                  if (!mounted) return;
+                  _returnToDashboard();
                 },
-                child: Text("register for current user"),
+                child: const Text("Register Wallet"),
               ),
             ],
           );

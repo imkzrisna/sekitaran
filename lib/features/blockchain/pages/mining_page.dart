@@ -41,11 +41,6 @@ class _MiningPageState extends State<MiningPage> {
     _service = BlockchainService(_gateway, _transaction, _session, _wallet);
     _service.isMiningNotifier.addListener(_onMiningChanged);
 
-    await _session.signInWithPasswordAsync(
-      email: "124240154@student.upnyk.ac.id",
-      password: "sayakurangtawu3",
-    );
-
     if (mounted) {
       setState(() => _isLoggedIn = _session.currentSession != null);
     }
