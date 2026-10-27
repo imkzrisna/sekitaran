@@ -41,9 +41,9 @@ class _RegularHomePageState extends State<RegularHomePage>
   ShopCategory? _filter; // null = semua kategori
   static const _radiusMeters = 5000.0; // radius maksimal 5 km
   String? _shopsError;
+  bool _loadingShops = true;
   final _offlineService = OfflineStoreService.instance;
   final Set<String> _savingOfflineIds = {};
-  static const _warn = Color(0xFFD9822B);
   final Set<String> _updatable = {};
 
   Future<void> _checkUpdates() async {
@@ -161,11 +161,17 @@ class _RegularHomePageState extends State<RegularHomePage>
       setState(() {
         _shops = shops;
         _shopsError = null;
+        _loadingShops = false;
       });
       _checkUpdates();
       _fitSoon();
     } on ShopsFailure catch (e) {
-      if (mounted) setState(() => _shopsError = e.message);
+      if (mounted) {
+        setState(() {
+          _shopsError = e.message;
+          _loadingShops = false;
+        });
+      }
     }
   }
 
@@ -533,7 +539,7 @@ class _RegularHomePageState extends State<RegularHomePage>
           border: last
               ? null
               : Border(
-                  bottom: BorderSide(color: _border.withValues(alpha: 0.6)),
+                  bottom: BorderSide(color: _border.withValues(alpha: 0.45)),
                 ),
         ),
         child: Row(
@@ -559,7 +565,7 @@ class _RegularHomePageState extends State<RegularHomePage>
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       fontWeight: hasUpdate ? FontWeight.w600 : FontWeight.w400,
-                      color: hasUpdate ? _warn : _grey,
+                      color: hasUpdate ? _green : _grey,
                     ),
                   ),
                 ],
@@ -594,7 +600,7 @@ class _RegularHomePageState extends State<RegularHomePage>
                           : (isSaved
                                 ? Icons.offline_pin
                                 : Icons.download_for_offline_outlined),
-                      color: hasUpdate ? _warn : (isSaved ? _green : _grey),
+                      color: hasUpdate ? _accent : (isSaved ? _green : _grey),
                     ),
             ),
             const Icon(Icons.chevron_right, size: 22, color: _grey),
@@ -604,11 +610,49 @@ class _RegularHomePageState extends State<RegularHomePage>
     );
   }
 
+  Widget _bar(double w, double h) => Container(
+    width: w,
+    height: h,
+    decoration: BoxDecoration(
+      color: _border.withValues(alpha: 0.35),
+      borderRadius: BorderRadius.circular(6),
+    ),
+  );
+
+  Widget _skeleton() {
+    return Column(
+      children: [
+        for (var i = 0; i < 3; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Row(
+              children: [
+                _bar(22, 22),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _bar(140, 14),
+                      const SizedBox(height: 8),
+                      _bar(90, 10),
+                    ],
+                  ),
+                ),
+                _bar(44, 14),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _shopList() {
     final here = _pos;
     if (here == null) {
       return _hint('Nearby shops appear once your location is found.');
     }
+    if (_loadingShops) return _skeleton();
     if (_shopsError != null) return _hint(_shopsError!);
     final items = _nearest(here);
     if (items.isEmpty) {
@@ -663,6 +707,7 @@ class _RegularHomePageState extends State<RegularHomePage>
                           onPressed: _openOfflineStores,
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.zero,
+                            foregroundColor: _green,
                             minimumSize: const Size(0, 32),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
@@ -670,23 +715,42 @@ class _RegularHomePageState extends State<RegularHomePage>
                             Icons.offline_pin_outlined,
                             size: 20,
                           ),
-                          label: const Text('Offline Stores'),
+                          label: Text(
+                            'Offline Stores',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      if (_pos != null && !_loadingShops)
+                        Text(
+                          '${_nearest(_pos!).length} within 5 km, nearest first',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12.5,
+                            color: _grey,
+                          ),
+                        ),
                       const SizedBox(height: 14),
                       Text(
                         'Category',
                         style: GoogleFonts.poppins(fontSize: 13, color: _grey),
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _chip('All', null),
-                          for (final c in ShopCategory.values)
-                            if (c != ShopCategory.exchange) _chip(c.label, c),
-                        ],
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _chip('All', null),
+                            for (final c in ShopCategory.values)
+                              if (c != ShopCategory.exchange) ...[
+                                const SizedBox(width: 8),
+                                _chip(c.label, c),
+                              ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 8),
                       _shopList(),
