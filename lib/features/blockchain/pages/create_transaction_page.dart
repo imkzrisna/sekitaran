@@ -72,7 +72,7 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
 
     final user = _session.currentSession;
     if (user == null) {
-      _snack('Please log in first.');
+      _snack('Silahkan login dulu');
       return;
     }
 
@@ -86,13 +86,13 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
 
       if (amount > balance) {
         if (mounted) setState(() => _submitting = false);
-        _snack('Insufficient balance');
+        _snack('KTS tidak cukup');
         return;
       }
 
       if (giverAddress == _receiverController.text.trim()) {
         if (mounted) setState(() => _submitting = false);
-        _snack('Cannot transfer a wallet into itself');
+        _snack('Tidak bisa mentransfer dari satu dompet ke dirinya sendiri');
         return;
       }
 
@@ -110,12 +110,12 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
       _receiverController.clear();
       _amountController.clear();
       _memoController.clear();
-      _snack('Transaction submitted');
+      _snack('Transaksi berhasil');
     } catch (error) {
       if (!mounted) return;
-      _snack('Could not submit the transaction. Please try again.');
+      _snack('Tidak dapat mengsubmit transaksi, silahkan coba lagi!');
 
-      print("failed to submit transaction: $error");
+      print("gagal untuk mengsubmit transaksi: $error");
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -145,7 +145,7 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
         const SizedBox(height: 20),
         const SizedBox(height: 28),
         Text(
-          'Create Transaction',
+          'Buat Transaksi',
           style: GoogleFonts.poppins(
             fontSize: 26,
             fontWeight: FontWeight.w600,
@@ -154,7 +154,7 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
         ),
         const SizedBox(height: 14),
         Text(
-          'Send funds to another Sekitaran wallet.',
+          'Transfer KTS menuju ke pengguna Sekitaran lain',
           style: GoogleFonts.poppins(
             fontSize: 15,
             fontWeight: FontWeight.w500,
@@ -274,31 +274,31 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
                       children: [
                         _header(),
                         const SizedBox(height: 32),
-                        _underlined('Recipient'),
+                        _underlined('Penerima'),
                         const SizedBox(height: 6),
                         _formField(
                           controller: _receiverController,
-                          label: 'Wallet address',
+                          label: 'Alamat dompet',
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
-                              return 'Recipient address is required';
+                              return 'Penerima wajib diisi';
                             }
                             return null;
                           },
                         ),
                         _formField(
                           controller: _amountController,
-                          label: 'Amount',
+                          label: 'Nominal',
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
-                              return 'Amount is required';
+                              return 'Nominal wajib diisi';
                             }
                             final parsed = double.tryParse(value.trim());
                             if (parsed == null || parsed <= 0) {
-                              return 'Enter a valid amount';
+                              return 'Masukkan nilai yang valid';
                             }
                             return null;
                           },
@@ -306,7 +306,7 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
                         _formField(
                           validator: (value) {},
                           controller: _memoController,
-                          label: 'Memo (optional)',
+                          label: 'Memo (opsional)',
                           maxLines: 2,
                         ),
                         _submitButton(),

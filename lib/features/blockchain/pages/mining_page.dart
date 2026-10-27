@@ -73,14 +73,14 @@ class _MiningPageState extends State<MiningPage> {
     final started = await _service.miningAsync();
     if (!mounted) return;
     if (!started) {
-      _snack('Nothing to mine right now.');
+      _snack('Tidak ada yang bisa ditambang');
     }
   }
 
   Future<void> _stopMining() async {
     await _service.abortAsync();
     if (!mounted) return;
-    _snack('Mining stopped.');
+    _snack('Pertambangan berhenti.');
   }
 
   Widget _underlined(String text, {double size = 16}) {
@@ -189,7 +189,7 @@ class _MiningPageState extends State<MiningPage> {
                           const Icon(Icons.login, size: 48, color: _green),
                           const SizedBox(height: 16),
                           Text(
-                            'Please log in to start mining',
+                            'Silahkan login untuk menambang',
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -198,7 +198,7 @@ class _MiningPageState extends State<MiningPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'You need to be logged in to mine blocks.',
+                            'Kamu perlu login untuk memulai menambang',
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               color: _grey,
@@ -219,10 +219,10 @@ class _MiningPageState extends State<MiningPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 20),
-                            _underlined('Mining'),
+                            _underlined('Menambang'),
                             const SizedBox(height: 14),
                             Text(
-                              'Mine blocks and earn rewards',
+                              'Tambang blok dan dapatkan reward',
                               style: GoogleFonts.poppins(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
@@ -240,12 +240,12 @@ class _MiningPageState extends State<MiningPage> {
                           children: [
                             if (!_mining)
                               _primaryButton(
-                                label: 'Start mining',
+                                label: 'Mulai menambang',
                                 onPressed: _startMining,
                               )
                             else
                               _outlineButton(
-                                label: 'Stop mining',
+                                label: 'Berhenti menambang',
                                 onPressed: _stopMining,
                               ),
                           ],

@@ -120,7 +120,7 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = "there's an error: " + e.toString();
+        _error = "terdapat error: " + e.toString();
         _loading = false;
       });
     }
@@ -220,9 +220,10 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
           ),
           child: word('$_username!'),
         ),
-        word('your'),
+        word('berikut'),
+        word('saldo'),
         word('SKT'),
-        word('balance.'),
+        word('mu.'),
       ],
     );
   }
@@ -296,7 +297,7 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Balance', style: GoogleFonts.poppins(fontSize: 13, color: _grey)),
+        Text('Saldo', style: GoogleFonts.poppins(fontSize: 13, color: _grey)),
         const SizedBox(height: 8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -361,12 +362,12 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Balance',
+              'Saldo',
               style: GoogleFonts.poppins(fontSize: 13, color: _grey),
             ),
             const SizedBox(height: 8),
             Text(
-              'Could not load balance.',
+              'Tidak dapat memuat saldo!',
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 color: Colors.red.shade600,
@@ -395,7 +396,7 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
                         ),
                       )
                     : Text(
-                        'Retry',
+                        'Coba lagi',
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -452,13 +453,14 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _heading(
-          'Wallet',
+          'Dompet',
           Icons.account_balance_wallet_outlined,
-          caption: 'Register a wallet to start holding and earning SKT.',
+          caption:
+              'Regiser dompet untuk memulai mendapatkan dan mentransfer SKT',
         ),
         const SizedBox(height: 16),
         _primaryOutlineButton(
-          label: 'Register Wallet',
+          label: 'Register Dompet',
           icon: Icons.add,
           onPressed: _registerWallet,
         ),
@@ -473,17 +475,17 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
         _heading(
           'Actions',
           Icons.send_outlined,
-          caption: 'Mine more SKT or create a new transaction',
+          caption: 'Tambang SKT atau buat transaksi',
         ),
         const SizedBox(height: 16),
         _primaryOutlineButton(
-          label: 'Mine',
+          label: 'Tambang',
           icon: Icons.work_outline,
           onPressed: _goToMining,
         ),
         const SizedBox(height: 12),
         _primaryOutlineButton(
-          label: 'Transactions',
+          label: 'Transaksi',
           icon: Icons.receipt_outlined,
           onPressed: _goToTransactions,
         ),
