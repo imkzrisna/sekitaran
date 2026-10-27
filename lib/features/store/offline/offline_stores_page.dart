@@ -28,6 +28,8 @@ class _OfflineStoresPageState extends State<OfflineStoresPage> {
   String? _locationMessage;
   String _selectedCategory = 'all';
   final Set<String> _expandedStoreIds = <String>{};
+  bool _tileFailed = false;
+  int _mapKey = 0;
   static const String _osmUrl =
       'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
@@ -116,55 +118,71 @@ class _OfflineStoresPageState extends State<OfflineStoresPage> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFDCE5DF)),
           ),
-          child: FlutterMap(
-            options: MapOptions(
-              initialCenter: center,
-              initialZoom: 13,
-              minZoom: 3,
-              maxZoom: 19,
-            ),
+          child: Stack(
             children: [
-              TileLayer(
-                urlTemplate: _osmUrl,
-                userAgentPackageName: 'com.example.sekitaran',
-              ),
-              MarkerLayer(
-                markers: [
-                  for (final store in validStores)
-                    Marker(
-                      point: LatLng(
-                        _toDouble(store['latitude'])!,
-                        _toDouble(store['longitude'])!,
-                      ),
-                      width: 42,
-                      height: 48,
-                      child: Tooltip(
-                        message: store['name']?.toString() ?? 'Toko',
-                        child: const Icon(
-                          Icons.location_on,
-                          color: Color(0xFF103D17),
-                          size: 38,
+              FlutterMap(
+                key: ValueKey(_mapKey),
+                options: MapOptions(
+                  initialCenter: center,
+                  initialZoom: 13,
+                  minZoom: 3,
+                  maxZoom: 19,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: _osmUrl,
+                    userAgentPackageName: 'com.example.sekitaran',
+                    evictErrorTileStrategy:
+                        EvictErrorTileStrategy.notVisibleRespectMargin,
+                    errorTileCallback: (tile, error, stackTrace) {
+                      if (_tileFailed) return;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted && !_tileFailed) {
+                          setState(() => _tileFailed = true);
+                        }
+                      });
+                    },
+                  ),
+                  MarkerLayer(
+                    markers: [
+                      for (final store in validStores)
+                        Marker(
+                          point: LatLng(
+                            _toDouble(store['latitude'])!,
+                            _toDouble(store['longitude'])!,
+                          ),
+                          width: 42,
+                          height: 48,
+                          child: Tooltip(
+                            message: store['name']?.toString() ?? 'Toko',
+                            child: const Icon(
+                              Icons.location_on,
+                              color: Color(0xFF103D17),
+                              size: 38,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  if (_position != null)
-                    Marker(
-                      point: _position!,
-                      width: 42,
-                      height: 42,
-                      child: const Icon(
-                        Icons.my_location,
-                        color: Colors.blue,
-                        size: 28,
-                      ),
-                    ),
+                      if (_position != null)
+                        Marker(
+                          point: _position!,
+                          width: 42,
+                          height: 42,
+                          child: const Icon(
+                            Icons.my_location,
+                            color: Colors.blue,
+                            size: 28,
+                          ),
+                        ),
+                    ],
+                  ),
+                  RichAttributionWidget(
+                    attributions: [
+                      TextSourceAttribution('OpenStreetMap contributors'),
+                    ],
+                  ),
                 ],
               ),
-              RichAttributionWidget(
-                attributions: [
-                  TextSourceAttribution('OpenStreetMap contributors'),
-                ],
-              ),
+              if (_tileFailed) _offlineMapBanner(),
             ],
           ),
         ),
@@ -209,6 +227,51 @@ class _OfflineStoresPageState extends State<OfflineStoresPage> {
             ),
           ),
       ],
+    );
+  }
+
+  void _retryMap() {
+    setState(() {
+      _tileFailed = false;
+      _mapKey++;
+    });
+  }
+
+  Widget _offlineMapBanner() {
+    return Positioned(
+      top: 8,
+      left: 8,
+      right: 8,
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+          child: Row(
+            children: [
+              const Icon(Icons.cloud_off_outlined, size: 18, color: _grey),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Peta memerlukan internet. Lokasi dan jarak tetap tersedia.',
+                  style: GoogleFonts.poppins(fontSize: 11, color: _grey),
+                ),
+              ),
+              TextButton(
+                onPressed: _retryMap,
+                child: Text(
+                  'Coba lagi',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: _green,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -645,6 +708,7 @@ class _OfflineStoresPageState extends State<OfflineStoresPage> {
             constraints: const BoxConstraints(maxWidth: 440),
             child: RefreshIndicator(
               onRefresh: () async {
+                _retryMap();
                 _loadStores();
                 await _loadLocation();
               },
