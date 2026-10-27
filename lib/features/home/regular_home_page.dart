@@ -12,6 +12,8 @@ import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
+import 'package:sekitaran/features/store/offline/offline_stores_page.dart';
+import 'package:sekitaran/features/store/offline/offline_store_service.dart';
 
 class RegularHomePage extends StatefulWidget {
   const RegularHomePage({super.key});
@@ -39,6 +41,40 @@ class _RegularHomePageState extends State<RegularHomePage>
   ShopCategory? _filter; // null = semua kategori
   static const _radiusMeters = 5000.0; // radius maksimal 5 km
   String? _shopsError;
+  final _offlineService = OfflineStoreService.instance;
+  final Set<String> _savingOfflineIds = {};
+
+  Future<void> _saveShopOffline(Shop shop) async {
+    if (_savingOfflineIds.contains(shop.id) ||
+        _offlineService.isStoreAvailableOffline(shop.id)) {
+      return;
+    }
+
+    setState(() => _savingOfflineIds.add(shop.id));
+
+    try {
+      await _offlineService.savePublicStoreForOffline(shop.id);
+      if (!mounted) return;
+      setState(() {});
+      _snack('Toko ${shop.name} berhasil disimpan untuk offline.');
+    } on OfflineStoreFailure catch (e) {
+      if (mounted) _snack(e.message);
+    } catch (_) {
+      if (mounted) {
+        _snack('Gagal menyimpan toko offline. Coba lagi saat online.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _savingOfflineIds.remove(shop.id));
+      }
+    }
+  }
+
+  Future<void> _openOfflineStores() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const OfflineStoresPage()));
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
@@ -448,6 +484,9 @@ class _RegularHomePageState extends State<RegularHomePage>
   }
 
   Widget _shopRow(ShopDistance d, LatLng here, {required bool last}) {
+    final isSaved = _offlineService.isStoreAvailableOffline(d.shop.id);
+    final isSaving = _savingOfflineIds.contains(d.shop.id);
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => Navigator.of(context).push(
@@ -499,6 +538,24 @@ class _RegularHomePageState extends State<RegularHomePage>
               ),
             ),
             const SizedBox(width: 4),
+            IconButton(
+              tooltip: isSaved ? 'Tersimpan offline' : 'Simpan untuk offline',
+              onPressed: (isSaved || isSaving)
+                  ? null
+                  : () => _saveShopOffline(d.shop),
+              icon: isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      isSaved
+                          ? Icons.offline_pin
+                          : Icons.download_for_offline_outlined,
+                      color: isSaved ? _green : _grey,
+                    ),
+            ),
             const Icon(Icons.chevron_right, size: 22, color: _grey),
           ],
         ),
@@ -559,6 +616,14 @@ class _RegularHomePageState extends State<RegularHomePage>
                       const SizedBox(height: 12),
                       _mapBox(),
                       _heading('Nearest Shop', Icons.storefront_outlined),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: _openOfflineStores,
+                          icon: const Icon(Icons.offline_pin_outlined),
+                          label: const Text('Offline Stores'),
+                        ),
+                      ),
                       const SizedBox(height: 14),
                       Text(
                         'Category',
