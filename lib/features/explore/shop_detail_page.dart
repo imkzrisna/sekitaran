@@ -9,6 +9,8 @@ import 'package:sekitaran/features/explore/shop_detail_service.dart';
 import 'package:sekitaran/features/home/business_service.dart' show timeAgo;
 import 'package:sekitaran/features/home/user_radial_menu.dart';
 
+enum _CommentSort { newest, top }
+
 class ShopDetailPage extends StatefulWidget {
   const ShopDetailPage({super.key, required this.origin, required this.shop});
 
@@ -37,6 +39,10 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
   String? _error;
   bool _posting = false;
   int _req = 0;
+  _CommentSort _sort = _CommentSort.newest;
+  final _busyLikes = <String>{};
+  bool _showAll = false;
+  static const _previewCount = 5;
 
   @override
   void initState() {
@@ -102,6 +108,53 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
     } finally {
       if (mounted) setState(() => _posting = false);
     }
+  }
+
+  Future<void> _toggleLike(ShopDetailComment c, {bool onlyLike = false}) async {
+    final list = _detail?.comments;
+    if (list == null || _busyLikes.contains(c.id)) return;
+    if (onlyLike && c.liked) return;
+    final i = list.indexWhere((x) => x.id == c.id);
+    if (i < 0) return;
+    final prev = list[i];
+    _busyLikes.add(c.id);
+    HapticFeedback.selectionClick();
+    setState(() {
+      list[i] = prev.copyWith(
+        liked: !prev.liked,
+        likeCount: (prev.likeCount + (prev.liked ? -1 : 1)).clamp(0, 1 << 30),
+      );
+    });
+    try {
+      final r = await _service.toggleLike(c.id);
+      if (!mounted) return;
+      final j = list.indexWhere((x) => x.id == c.id);
+      if (j >= 0) {
+        setState(
+          () => list[j] = list[j].copyWith(liked: r.liked, likeCount: r.count),
+        );
+      }
+    } on ShopDetailFailure catch (e) {
+      if (!mounted) return;
+      final j = list.indexWhere((x) => x.id == c.id);
+      if (j >= 0) setState(() => list[j] = prev);
+      _snack(e.message);
+    } finally {
+      _busyLikes.remove(c.id);
+    }
+  }
+
+  List<ShopDetailComment> _sorted(List<ShopDetailComment> src) {
+    final r = [...src];
+    if (_sort == _CommentSort.top) {
+      r.sort((a, b) {
+        final c = b.likeCount.compareTo(a.likeCount);
+        return c != 0 ? c : b.createdAt.compareTo(a.createdAt);
+      });
+    } else {
+      r.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    return r;
   }
 
   void _copy(LatLng p) {
@@ -251,15 +304,61 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
     );
   }
 
+  Widget _bar(double w, double h) => Container(
+    width: w,
+    height: h,
+    decoration: BoxDecoration(
+      color: _border.withValues(alpha: 0.35),
+      borderRadius: BorderRadius.circular(6),
+    ),
+  );
+
   Widget _spinner() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 36),
-      child: Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(strokeWidth: 2.5, color: _green),
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _bar(150, 18),
+          const SizedBox(height: 10),
+          for (var i = 0; i < 3; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [_bar(130, 14), _bar(60, 14)],
+              ),
+            ),
+          const SizedBox(height: 24),
+          _bar(120, 18),
+          const SizedBox(height: 14),
+          for (var i = 0; i < 2; i++)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _bar(34, 34),
+                      const SizedBox(width: 10),
+                      _bar(100, 12),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _bar(double.infinity, 12),
+                  const SizedBox(height: 8),
+                  _bar(180, 12),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -580,28 +679,6 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
 
   // ---------- Komentar ----------
 
-  InputDecoration _inputDecoration(String hint) {
-    OutlineInputBorder border(Color c) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: c, width: 1.2),
-    );
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: GoogleFonts.poppins(
-        color: const Color(0xFF9A9A9A),
-        fontSize: 14,
-        fontWeight: FontWeight.w300,
-      ),
-      counterText: '',
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      enabledBorder: border(_border),
-      disabledBorder: border(_border),
-      focusedBorder: border(_green),
-    );
-  }
-
   Widget _postButton(bool enabled) {
     return Opacity(
       opacity: (enabled || _posting) ? 1 : 0.4,
@@ -649,98 +726,112 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
     );
   }
 
+  static const _loveColor = Color(0xFFE5484D);
+  static const _avatarColors = [
+    Color(0xFF5BAA5F),
+    Color(0xFF2F6FED),
+    Color(0xFFC99A4A),
+    Color(0xFFE5484D),
+    Color(0xFF8E5BD9),
+    Color(0xFF1F9E8F),
+  ];
+
+  Color _colorFor(String name) =>
+      _avatarColors[name.hashCode.abs() % _avatarColors.length];
+
   Widget _commentInput() {
     return ListenableBuilder(
       listenable: _input,
       builder: (context, _) {
+        final len = _input.text.length;
         final can =
             _input.text.trim().length >= ShopDetailService.minCommentLength &&
             !_posting;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _input,
-              enabled: !_posting,
-              minLines: 3,
-              maxLines: 6,
-              maxLength: ShopDetailService.maxCommentLength,
-              textCapitalization: TextCapitalization.sentences,
-              style: GoogleFonts.poppins(fontSize: 14, color: _ink),
-              decoration: _inputDecoration(
-                'Write a comment about this shop...',
-              ),
+        final near = len >= 270;
+        return Container(
+          padding: const EdgeInsets.fromLTRB(16, 4, 10, 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: len > 0
+                  ? _green.withValues(alpha: 0.5)
+                  : _border.withValues(alpha: 0.6),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  '${_input.text.length}/${ShopDetailService.maxCommentLength}',
-                  style: GoogleFonts.poppins(fontSize: 11.5, color: _grey),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _input,
+                enabled: !_posting,
+                minLines: 2,
+                maxLines: 6,
+                maxLength: ShopDetailService.maxCommentLength,
+                textCapitalization: TextCapitalization.sentences,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: _ink,
+                  height: 1.5,
                 ),
-                const Spacer(),
-                _postButton(can),
-              ],
-            ),
-          ],
+                decoration: InputDecoration(
+                  hintText: 'Share your experience...',
+                  hintStyle: GoogleFonts.poppins(
+                    color: const Color(0xFF9A9A9A),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w300,
+                  ),
+                  counterText: '',
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              ),
+              Row(
+                children: [
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 150),
+                    opacity: len > 0 ? 1 : 0,
+                    child: Text(
+                      '$len/${ShopDetailService.maxCommentLength}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11.5,
+                        fontWeight: near ? FontWeight.w600 : FontWeight.w400,
+                        color: near ? _loveColor : _grey,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  _postButton(can),
+                ],
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
-  Widget _commentCard(ShopDetailComment c) {
+  Widget _pill(IconData icon, String text, Color color) {
     return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.only(bottom: 1),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: _accent, width: 1.5),
-                    ),
-                  ),
-                  child: Text(
-                    c.author,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: _ink,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                timeAgo(c.createdAt),
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: _grey,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
           Text(
-            c.body,
+            text,
             style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: _ink,
-              height: 1.5,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
             ),
           ),
         ],
@@ -748,35 +839,305 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
     );
   }
 
+  Widget _loveButton(ShopDetailComment c) {
+    final on = c.liked;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        _toggleLike(c);
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(left: 12, top: 2, bottom: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 240),
+              transitionBuilder: (w, a) => ScaleTransition(
+                scale: CurvedAnimation(parent: a, curve: Curves.elasticOut),
+                child: w,
+              ),
+              child: Icon(
+                on ? Icons.favorite : Icons.favorite_border,
+                key: ValueKey(on),
+                size: 17,
+                color: on ? _loveColor : _grey,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '${c.likeCount}',
+              style: GoogleFonts.poppins(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+                color: on ? _loveColor : _grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _avatar(ShopDetailComment c, {double size = 36}) {
+    final col = c.mine ? _green : _colorFor(c.author);
+    final ch = c.author.isEmpty ? '?' : c.author[0].toUpperCase();
+    final url = (c.avatarUrl ?? '').trim();
+    final valid = url.startsWith('http://') || url.startsWith('https://');
+    final fallback = Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      color: col.withValues(alpha: 0.14),
+      child: Text(
+        ch,
+        style: GoogleFonts.poppins(
+          fontSize: size * 0.42,
+          fontWeight: FontWeight.w600,
+          color: col,
+        ),
+      ),
+    );
+    return ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: valid
+            ? Image.network(
+                url,
+                fit: BoxFit.cover,
+                cacheWidth: (size * 3).round(),
+                errorBuilder: (_, _, _) => fallback,
+                loadingBuilder: (_, child, progress) =>
+                    progress == null ? child : fallback,
+              )
+            : fallback,
+      ),
+    );
+  }
+
+  Widget _commentCard(ShopDetailComment c, {bool top = false}) {
+    return _DoubleTapLove(
+      onLove: () => _toggleLike(c, onlyLike: true),
+      child: Container(
+        width: double.infinity,
+        color: Colors.transparent,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _avatar(c),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          c.author,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: _ink,
+                          ),
+                        ),
+                      ),
+                      if (top) ...[
+                        const SizedBox(width: 4),
+                        const Icon(Icons.star_rounded, size: 15, color: _gold),
+                      ],
+                      const SizedBox(width: 8),
+                      Text(
+                        timeAgo(c.createdAt),
+                        style: GoogleFonts.poppins(
+                          fontSize: 11.5,
+                          color: _grey,
+                        ),
+                      ),
+                      const Spacer(),
+                      _loveButton(c),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    c.body,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13.5,
+                      color: _ink,
+                      height: 1.55,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _seg(String label, _CommentSort v) {
+    final on = _sort == v;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (_sort == v) return;
+        HapticFeedback.selectionClick();
+        setState(() => _sort = v);
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(right: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+                color: on ? _ink : _grey,
+              ),
+            ),
+            const SizedBox(height: 4),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: 2,
+              width: on ? 22 : 0,
+              decoration: BoxDecoration(
+                color: _green,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sortToggle() {
+    return Row(
+      children: [
+        _seg('Newest', _CommentSort.newest),
+        _seg('Most loved', _CommentSort.top),
+      ],
+    );
+  }
+
+  Widget _emptyComments() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 26,
+              color: _grey.withValues(alpha: 0.6),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No comments yet. Be the first to share.',
+              style: GoogleFonts.poppins(fontSize: 12.5, color: _grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _moreButton(int total) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _showAll = !_showAll),
+        child: SizedBox(
+          height: 40,
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _showAll ? 'Show less' : 'Show all $total comments',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _green,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  _showAll ? Icons.expand_less : Icons.expand_more,
+                  size: 20,
+                  color: _green,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _commentsSection(ShopDetail d) {
     final n = d.comments.length;
+    final loves = d.comments.fold<int>(0, (a, c) => a + c.likeCount);
+    final all = _sorted(d.comments);
+    final list = _showAll ? all : all.take(_previewCount).toList();
+    final divider = Divider(
+      height: 1,
+      thickness: 1,
+      color: _border.withValues(alpha: 0.35),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _heading('Comments', Icons.chat_bubble_outline),
-        const SizedBox(height: 8),
-        Text(
-          n == 0
-              ? 'Share your experience with this shop.'
-              : '$n ${n == 1 ? 'comment' : 'comments'}',
-          style: GoogleFonts.poppins(fontSize: 12.5, color: _grey),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _pill(Icons.chat_bubble_outline, '$n', _green),
+            const SizedBox(width: 8),
+            _pill(Icons.favorite, '$loves', _loveColor),
+          ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         _commentInput(),
+        if (n > 1) ...[const SizedBox(height: 18), _sortToggle()],
         const SizedBox(height: 6),
         if (d.commentsFailed)
           _message('Could not load comments.', onRetry: _load)
-        else if (d.comments.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Text(
-              'No comments yet. Be the first!',
-              style: GoogleFonts.poppins(fontSize: 13, color: _grey),
-            ),
-          )
+        else if (list.isEmpty)
+          _emptyComments()
         else
-          for (final c in d.comments)
-            _FadeIn(key: ValueKey(c.id), child: _commentCard(c)),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 240),
+            child: Column(
+              key: ValueKey('${_sort.name}_$_showAll'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < list.length; i++) ...[
+                  if (i > 0) divider,
+                  _FadeIn(
+                    key: ValueKey(list[i].id),
+                    child: _commentCard(
+                      list[i],
+                      top:
+                          _sort == _CommentSort.top &&
+                          i == 0 &&
+                          list[i].likeCount > 0,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        if (!d.commentsFailed && all.length > _previewCount)
+          _moreButton(all.length),
       ],
     );
   }
@@ -855,6 +1216,78 @@ class _FadeIn extends StatelessWidget {
         ),
       ),
       child: child,
+    );
+  }
+}
+
+/// Double-tap memunculkan hati besar di atas anak, lalu memanggil [onLove].
+class _DoubleTapLove extends StatefulWidget {
+  const _DoubleTapLove({required this.onLove, required this.child});
+
+  final VoidCallback onLove;
+  final Widget child;
+
+  @override
+  State<_DoubleTapLove> createState() => _DoubleTapLoveState();
+}
+
+class _DoubleTapLoveState extends State<_DoubleTapLove>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 700),
+  );
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onDoubleTap: () {
+        _c.forward(from: 0);
+        widget.onLove();
+      },
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          widget.child,
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _c,
+                builder: (_, _) {
+                  if (_c.isDismissed) return const SizedBox.shrink();
+                  final t = _c.value;
+                  final scale = t < 0.3
+                      ? Curves.easeOutBack.transform(t / 0.3)
+                      : 1.0;
+                  final opacity = t < 0.6
+                      ? 1.0
+                      : (1 - (t - 0.6) / 0.4).clamp(0.0, 1.0);
+                  return Center(
+                    child: Opacity(
+                      opacity: opacity,
+                      child: Transform.scale(
+                        scale: scale,
+                        child: const Icon(
+                          Icons.favorite,
+                          size: 64,
+                          color: Color(0xFFE5484D),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

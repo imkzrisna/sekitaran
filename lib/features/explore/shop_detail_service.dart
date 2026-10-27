@@ -33,13 +33,31 @@ class ShopDetailComment {
     required this.author,
     required this.body,
     required this.createdAt,
+    this.avatarUrl,
     this.mine = false,
+    this.likeCount = 0,
+    this.liked = false,
   });
   final String id;
   final String author;
   final String body;
   final DateTime createdAt;
+  final String? avatarUrl;
   final bool mine;
+  final int likeCount;
+  final bool liked;
+
+  ShopDetailComment copyWith({int? likeCount, bool? liked}) =>
+      ShopDetailComment(
+        id: id,
+        author: author,
+        body: body,
+        createdAt: createdAt,
+        avatarUrl: avatarUrl,
+        mine: mine,
+        likeCount: likeCount ?? this.likeCount,
+        liked: liked ?? this.liked,
+      );
 }
 
 class ShopDetail {
@@ -113,7 +131,10 @@ class ShopDetailService {
       body: '${m['body'] ?? ''}',
       createdAt:
           DateTime.tryParse('${m['created_at']}')?.toLocal() ?? DateTime.now(),
+      avatarUrl: m['avatar_url']?.toString(),
       mine: mine,
+      likeCount: _numOrNull(m['like_count'])?.toInt() ?? 0,
+      liked: m['liked'] == true,
     );
   }
 
@@ -132,6 +153,9 @@ class ShopDetailService {
     }
     if (m.contains('shop_not_found')) {
       return 'This shop is no longer available.';
+    }
+    if (m.contains('comment_not_found')) {
+      return 'This comment is no longer available.';
     }
     if (m.contains('not_authenticated')) return 'Please log in again.';
     return fallback;
@@ -223,6 +247,51 @@ class ShopDetailService {
     }
   }
 
+  /// Toggle love pada komentar. Mengembalikan status dan jumlah terbaru.
+  Future<({bool liked, int count})> toggleLike(String commentId) async {
+    try {
+      final res = await _client.rpc(
+        'toggle_comment_like',
+        params: {'p_comment_id': commentId},
+      );
+      if (res is! Map) {
+        throw const ShopDetailFailure('Unexpected data from the server.');
+      }
+      return (
+        liked: res['liked'] == true,
+        count: _numOrNull(res['like_count'])?.toInt() ?? 0,
+      );
+    } on ShopDetailFailure {
+      rethrow;
+    } on AuthException {
+      throw const ShopDetailFailure('Session expired. Please log in again.');
+    } on PostgrestException catch (e) {
+      throw ShopDetailFailure(
+        _message(e.message, fallback: 'Could not update your love.'),
+      );
+    } catch (_) {
+      throw const ShopDetailFailure(
+        'Could not connect to the server. Check your internet connection.',
+      );
+    }
+  }
+
+  Future<String?> _myAvatar() async {
+    try {
+      final uid = _client.auth.currentUser?.id;
+      if (uid == null) return null;
+      final row = await _client
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', uid)
+          .maybeSingle();
+      final v = row?['avatar_url'];
+      return v is String && v.isNotEmpty ? v : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<ShopDetailComment> postComment(Shop shop, String body) async {
     final text = body.trim();
     if (text.length < minCommentLength) {
@@ -241,6 +310,7 @@ class ShopDetailService {
         author: 'You',
         body: text,
         createdAt: DateTime.now(),
+        avatarUrl: await _myAvatar(),
         mine: true,
       );
     } on AuthException {
