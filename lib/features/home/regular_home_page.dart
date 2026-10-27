@@ -10,7 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/indonesia_geo.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
-import 'package:sekitaran/features/explore/route_map_page.dart';
+import 'package:sekitaran/features/explore/shop_detail_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 import 'package:sekitaran/features/store/offline/saved_places_page.dart';
 import 'package:sekitaran/features/store/offline/offline_store_service.dart';
@@ -524,7 +524,7 @@ class _RegularHomePageState extends State<RegularHomePage>
       behavior: HitTestBehavior.opaque,
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => RouteMapPage(origin: here, shop: d.shop),
+          builder: (_) => ShopDetailPage(origin: here, shop: d.shop),
         ),
       ),
       child: Container(
