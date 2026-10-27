@@ -935,30 +935,39 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
                 children: [
                   Row(
                     children: [
-                      Flexible(
-                        child: Text(
-                          c.author,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: _ink,
-                          ),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                c.author,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: _ink,
+                                ),
+                              ),
+                            ),
+                            if (top) ...[
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.star_rounded,
+                                size: 15,
+                                color: _gold,
+                              ),
+                            ],
+                            const SizedBox(width: 8),
+                            Text(
+                              timeAgo(c.createdAt),
+                              style: GoogleFonts.poppins(
+                                fontSize: 11.5,
+                                color: _grey,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      if (top) ...[
-                        const SizedBox(width: 4),
-                        const Icon(Icons.star_rounded, size: 15, color: _gold),
-                      ],
-                      const SizedBox(width: 8),
-                      Text(
-                        timeAgo(c.createdAt),
-                        style: GoogleFonts.poppins(
-                          fontSize: 11.5,
-                          color: _grey,
-                        ),
-                      ),
-                      const Spacer(),
                       _loveButton(c),
                     ],
                   ),
