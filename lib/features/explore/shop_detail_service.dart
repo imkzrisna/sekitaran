@@ -47,10 +47,14 @@ class ShopDetail {
     required this.items,
     required this.rates,
     required this.comments,
+    this.commentsFailed = false,
   });
   final List<ShopDetailItem> items;
   final List<ShopDetailRate> rates;
   final List<ShopDetailComment> comments;
+
+  /// true bila komentar gagal dimuat (bukan berarti komentarnya kosong).
+  final bool commentsFailed;
 }
 
 /// Rupiah dengan titik ribuan: 15000 -> "Rp 15.000".
@@ -135,41 +139,72 @@ class ShopDetailService {
 
   // ---------- Panggilan ke database ----------
 
-  Future<ShopDetail> fetchDetail(Shop shop) async {
+  Future<List<Map<String, dynamic>>> _fetchItems(String id) async {
+    final rows = await _client
+        .from('items')
+        .select('id, name, price, created_at')
+        .eq('business_id', id)
+        .eq('is_active', true)
+        .order('created_at');
+    return _list(rows);
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchRates(String id) async {
+    final rows = await _client
+        .from('exchange_rates')
+        .select(
+          'currency_code, foreign_amount, idr_amount, '
+          'service_fee_idr, created_at',
+        )
+        .eq('business_id', id)
+        .order('created_at');
+    return _list(rows);
+  }
+
+  /// Tidak pernah melempar error: kegagalan ditandai lewat `failed`.
+  Future<({List<ShopDetailComment> list, bool failed})> _fetchComments(
+    String id,
+  ) async {
     try {
-      final itemRows = await _client
-          .from('items')
-          .select('id, name, price, created_at')
-          .eq('business_id', shop.id)
-          .eq('is_active', true)
-          .order('created_at');
-
-      final rateRows = await _client
-          .from('exchange_rates')
-          .select(
-            'currency_code, foreign_amount, idr_amount, '
-            'service_fee_idr, created_at',
-          )
-          .eq('business_id', shop.id)
-          .order('created_at');
-
-      // Komentar butuh nama yang disamarkan lewat fungsi SQL. Jika fungsi
-      // belum dipasang atau gagal, halaman tetap tampil tanpa komentar.
-      var comments = <ShopDetailComment>[];
-      try {
-        final res = await _client.rpc(
-          'shop_detail',
-          params: {'p_business_id': shop.id},
+      final res = await _client.rpc(
+        'shop_detail',
+        params: {'p_business_id': id},
+      );
+      if (res is Map) {
+        return (
+          list: _list(res['comments']).map(_comment).toList(),
+          failed: false,
         );
-        if (res is Map) {
-          comments = _list(res['comments']).map(_comment).toList();
-        }
-      } catch (_) {}
+      }
+      return (list: <ShopDetailComment>[], failed: true);
+    } catch (_) {
+      return (list: <ShopDetailComment>[], failed: true);
+    }
+  }
+
+  Future<ShopDetail> fetchDetail(Shop shop) async {
+    final isExchange = shop.category == ShopCategory.exchange;
+    try {
+      // Paralel, dan hanya tabel yang sesuai kategori toko.
+      final results = await Future.wait<Object?>([
+        isExchange
+            ? Future<Object?>.value(const <Map<String, dynamic>>[])
+            : _fetchItems(shop.id),
+        isExchange
+            ? _fetchRates(shop.id)
+            : Future<Object?>.value(const <Map<String, dynamic>>[]),
+        _fetchComments(shop.id),
+      ]);
+      final items = results[0] as List<Map<String, dynamic>>;
+      final rates = results[1] as List<Map<String, dynamic>>;
+      final comments =
+          results[2] as ({List<ShopDetailComment> list, bool failed});
 
       return ShopDetail(
-        items: _list(itemRows).map(_item).toList(),
-        rates: _list(rateRows).map(_rate).toList(),
-        comments: comments,
+        items: items.map(_item).toList(),
+        rates: rates.map(_rate).toList(),
+        comments: comments.list,
+        commentsFailed: comments.failed,
       );
     } on AuthException {
       throw const ShopDetailFailure('Session expired. Please log in again.');
