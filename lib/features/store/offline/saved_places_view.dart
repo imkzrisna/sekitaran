@@ -342,7 +342,10 @@ class _SavedPlacesViewState extends State<SavedPlacesView> {
       padding: const EdgeInsets.only(top: 32),
       child: Row(
         children: [
-          Flexible(child: _underlined(text)),
+          if (trailing != null)
+            _underlined(text)
+          else
+            Flexible(child: _underlined(text)),
           const SizedBox(width: 6),
           Icon(icon, color: _green, size: 22),
           if (trailing != null) ...[const Spacer(), trailing],
@@ -359,12 +362,12 @@ class _SavedPlacesViewState extends State<SavedPlacesView> {
         _locate();
       },
       child: Padding(
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.fromLTRB(4, 4, 0, 4),
         child: AnimatedRotation(
           turns: _syncTurns,
           duration: const Duration(milliseconds: 600),
           curve: Curves.easeInOutCubic,
-          child: const Icon(Icons.sync, color: _green, size: 22),
+          child: const Icon(Icons.sync, color: _green, size: 18),
         ),
       ),
     );
