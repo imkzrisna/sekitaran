@@ -1,11 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-
-import 'package:flutter_map/flutter_map.dart';
-
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:sekitaran/core/app_confirm_dialog.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
+import 'package:sekitaran/features/home/user_radial_menu.dart';
 import 'package:sekitaran/features/store/offline/offline_store_service.dart';
 
 class OfflineStoresPage extends StatefulWidget {
@@ -15,825 +17,869 @@ class OfflineStoresPage extends StatefulWidget {
   State<OfflineStoresPage> createState() => _OfflineStoresPageState();
 }
 
+class _Entry {
+  const _Entry(this.store, this.point, this.meters);
+
+  final Map<String, dynamic> store;
+  final LatLng? point;
+  final double? meters;
+}
+
 class _OfflineStoresPageState extends State<OfflineStoresPage> {
   static const _green = Color(0xFF103D17);
-  static const _background = Color(0xFFF2F9F8);
+  static const _accent = Color(0xFF5BAA5F);
+  static const _ink = Color(0xFF252525);
+  static const _bg = Color(0xFFF2F9F8);
+  static const _border = Color(0xFFC9C9C9);
   static const _grey = Color(0xFF7A7A7A);
+
+  static const _categories = <(String, String)>[
+    ('all', 'All'),
+    ('restaurant', 'Local Restaurant'),
+    ('grocery', 'Grocery Store'),
+    ('money_changer', 'Money Changer'),
+  ];
 
   final _service = OfflineStoreService.instance;
 
   List<Map<String, dynamic>> _stores = [];
   LatLng? _position;
-  bool _loadingLocation = false;
+  bool _locating = false;
   String? _locationMessage;
-  String _selectedCategory = 'all';
-  final Set<String> _expandedStoreIds = <String>{};
-  bool _tileFailed = false;
-  int _mapKey = 0;
-  static const String _osmUrl =
-      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-  Widget _buildHybridMap() {
-    final validStores = _stores.where((store) {
-      final lat = _toDouble(store['latitude']);
-      final lon = _toDouble(store['longitude']);
-
-      return lat != null &&
-          lon != null &&
-          lat >= -90 &&
-          lat <= 90 &&
-          lon >= -180 &&
-          lon <= 180 &&
-          !(lat == 0 && lon == 0);
-    }).toList();
-
-    final center =
-        _position ??
-        (validStores.isNotEmpty
-            ? LatLng(
-                _toDouble(validStores.first['latitude'])!,
-                _toDouble(validStores.first['longitude'])!,
-              )
-            : const LatLng(-7.7956, 110.3695));
-
-    Widget coordinateCard({
-      required String title,
-      required double latitude,
-      required double longitude,
-      required IconData icon,
-      required Color color,
-    }) {
-      return Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(top: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFDCE5DF)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _green,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  SelectableText(
-                    'Latitude: ${latitude.toStringAsFixed(6)}\n'
-                    'Longitude: ${longitude.toStringAsFixed(6)}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: const Color(0xFF252525),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: double.infinity,
-          height: 250,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFDCE5DF)),
-          ),
-          child: Stack(
-            children: [
-              FlutterMap(
-                key: ValueKey(_mapKey),
-                options: MapOptions(
-                  initialCenter: center,
-                  initialZoom: 13,
-                  minZoom: 3,
-                  maxZoom: 19,
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate: _osmUrl,
-                    userAgentPackageName: 'com.example.sekitaran',
-                    evictErrorTileStrategy:
-                        EvictErrorTileStrategy.notVisibleRespectMargin,
-                    errorTileCallback: (tile, error, stackTrace) {
-                      if (_tileFailed) return;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted && !_tileFailed) {
-                          setState(() => _tileFailed = true);
-                        }
-                      });
-                    },
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      for (final store in validStores)
-                        Marker(
-                          point: LatLng(
-                            _toDouble(store['latitude'])!,
-                            _toDouble(store['longitude'])!,
-                          ),
-                          width: 42,
-                          height: 48,
-                          child: Tooltip(
-                            message: store['name']?.toString() ?? 'Toko',
-                            child: const Icon(
-                              Icons.location_on,
-                              color: Color(0xFF103D17),
-                              size: 38,
-                            ),
-                          ),
-                        ),
-                      if (_position != null)
-                        Marker(
-                          point: _position!,
-                          width: 42,
-                          height: 42,
-                          child: const Icon(
-                            Icons.my_location,
-                            color: Colors.blue,
-                            size: 28,
-                          ),
-                        ),
-                    ],
-                  ),
-                  RichAttributionWidget(
-                    attributions: [
-                      TextSourceAttribution('OpenStreetMap contributors'),
-                    ],
-                  ),
-                ],
-              ),
-              if (_tileFailed) _offlineMapBanner(),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Koordinat Lokasi',
-          style: GoogleFonts.poppins(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: _green,
-          ),
-        ),
-        if (_position case final position?)
-          coordinateCard(
-            title: 'Lokasi GPS saya',
-            latitude: position.latitude,
-            longitude: position.longitude,
-            icon: Icons.my_location,
-            color: Colors.blue,
-          )
-        else
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(top: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFDCE5DF)),
-            ),
-            child: Text(
-              'Lokasi GPS belum tersedia. Aktifkan layanan lokasi dan tekan tombol perbarui lokasi.',
-              style: GoogleFonts.poppins(fontSize: 11, color: _grey),
-            ),
-          ),
-        if (validStores.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              'Belum ada toko dengan koordinat yang valid untuk ditampilkan pada peta.',
-              style: GoogleFonts.poppins(fontSize: 11, color: _grey),
-            ),
-          ),
-      ],
-    );
-  }
-
-  void _retryMap() {
-    setState(() {
-      _tileFailed = false;
-      _mapKey++;
-    });
-  }
-
-  Widget _offlineMapBanner() {
-    return Positioned(
-      top: 8,
-      left: 8,
-      right: 8,
-      child: Material(
-        color: Colors.white.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
-          child: Row(
-            children: [
-              const Icon(Icons.cloud_off_outlined, size: 18, color: _grey),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Peta memerlukan internet. Lokasi dan jarak tetap tersedia.',
-                  style: GoogleFonts.poppins(fontSize: 11, color: _grey),
-                ),
-              ),
-              TextButton(
-                onPressed: _retryMap,
-                child: Text(
-                  'Coba lagi',
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: _green,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
+  String _category = 'all';
+  final Set<String> _expanded = <String>{};
+  double _syncTurns = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadStores();
-    _loadLocation();
+    _stores = List.of(_service.getOfflineStores());
+    _locate();
   }
+
+  // ---------- Data ----------
 
   void _loadStores() {
-    setState(() {
-      _stores = _service.getOfflineStores();
-    });
+    setState(() => _stores = List.of(_service.getOfflineStores()));
   }
 
-  Future<void> _loadLocation() async {
-    if (_loadingLocation) return;
+  void _snack(String m) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m)));
+  }
 
+  Future<void> _refresh() async {
+    _loadStores();
+    await _locate();
+  }
+
+  Future<void> _locate() async {
+    if (_locating) return;
     setState(() {
-      _loadingLocation = true;
+      _locating = true;
       _locationMessage = null;
     });
-
     try {
-      final enabled = await Geolocator.isLocationServiceEnabled();
-      if (!enabled) {
-        _locationMessage = 'Aktifkan GPS untuk melihat jarak toko.';
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        _fail('Turn on GPS to see your location and distances.');
         return;
       }
-
-      var permission = await Geolocator.checkPermission();
-
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
       }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        _locationMessage = 'Izin lokasi diperlukan untuk menghitung jarak.';
+      if (perm == LocationPermission.denied) {
+        _fail('Location permission is needed to show your location.');
         return;
       }
-
-      final location = await Geolocator.getCurrentPosition(
+      if (perm == LocationPermission.deniedForever) {
+        _fail('Location permission is blocked. Enable it in the app settings.');
+        return;
+      }
+      final p = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 10),
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 12),
         ),
       );
-
       if (!mounted) return;
-
-      setState(() {
-        _position = LatLng(location.latitude, location.longitude);
-      });
+      setState(() => _position = LatLng(p.latitude, p.longitude));
+    } on TimeoutException {
+      _fail('Could not get your location. Try again outdoors.');
     } catch (_) {
-      _locationMessage = 'Lokasi tidak tersedia. Data toko tetap dapat dibuka.';
+      _fail('Location unavailable. Your saved shops can still be opened.');
     } finally {
-      if (mounted) {
-        setState(() {
-          _loadingLocation = false;
-        });
-      }
+      if (mounted) setState(() => _locating = false);
     }
   }
 
-  double? _distance(Map<String, dynamic> store) {
-    final position = _position;
-    final latitude = _toDouble(store['latitude']);
-    final longitude = _toDouble(store['longitude']);
+  void _fail(String m) {
+    if (!mounted) return;
+    setState(() => _locationMessage = m);
+  }
 
-    if (position == null || latitude == null || longitude == null) {
-      return null;
+  double? _num(Object? v) => v is num ? v.toDouble() : double.tryParse('$v');
+
+  LatLng? _storePoint(Map<String, dynamic> s) {
+    final lat = _num(s['latitude']);
+    final lng = _num(s['longitude']);
+    if (lat == null || lng == null) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    if (lat == 0 && lng == 0) return null;
+    return LatLng(lat, lng);
+  }
+
+  _Entry _entry(Map<String, dynamic> s) {
+    final p = _storePoint(s);
+    final here = _position;
+    final m = (p != null && here != null) ? airMeters(here, p) : null;
+    return _Entry(s, p, m);
+  }
+
+  List<_Entry> get _entries {
+    final list = <_Entry>[
+      for (final s in _stores)
+        if (_category == 'all' || s['category']?.toString() == _category)
+          _entry(s),
+    ];
+    list.sort((a, b) {
+      final x = a.meters;
+      final y = b.meters;
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return x.compareTo(y);
+    });
+    return list;
+  }
+
+  // ---------- Format ----------
+
+  String _idr(Object? v) {
+    if (v == null) return 'Price unavailable';
+    final n = v is num ? v : num.tryParse('$v');
+    if (n == null) return '$v';
+    final s = n.round().toString();
+    final neg = s.startsWith('-');
+    final digits = neg ? s.substring(1) : s;
+    final b = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) b.write('.');
+      b.write(digits[i]);
     }
+    return 'Rp ${neg ? '-' : ''}$b';
+  }
 
-    if (latitude < -90 ||
-        latitude > 90 ||
-        longitude < -180 ||
-        longitude > 180 ||
-        (latitude == 0 && longitude == 0)) {
-      return null;
+  String _plain(Object? v) {
+    if (v == null) return '-';
+    final n = v is num ? v : num.tryParse('$v');
+    if (n == null) return '$v';
+    return n == n.roundToDouble() ? n.round().toString() : n.toString();
+  }
+
+  String? _savedLabel(Object? v) {
+    if (v == null) return null;
+    DateTime? d;
+    if (v is num) {
+      d = DateTime.fromMillisecondsSinceEpoch(v.toInt());
+    } else {
+      d = DateTime.tryParse('$v')?.toLocal();
     }
-
-    return airMeters(position, LatLng(latitude, longitude));
+    if (d == null) return 'Saved $v';
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mm = d.minute.toString().padLeft(2, '0');
+    return 'Saved ${d.day} ${months[d.month - 1]} ${d.year}, $hh:$mm';
   }
 
-  double? _toDouble(Object? value) {
-    if (value is num) return value.toDouble();
-    return double.tryParse('$value');
-  }
+  String _itemsTitle(String? category) => switch (category) {
+    'restaurant' => 'Menu & Prices',
+    'grocery' => 'Products & Prices',
+    _ => 'Items & Prices',
+  };
 
-  String _categoryLabel(Object? value) {
-    return switch (value) {
-      'restaurant' => 'Local Restaurant',
-      'grocery' => 'Grocery Store',
-      'money_changer' => 'Money Changer',
-      _ => 'Store',
-    };
-  }
+  String _categoryLabel(String? category) => switch (category) {
+    'restaurant' => 'Local Restaurant',
+    'grocery' => 'Grocery Store',
+    'money_changer' => 'Money Changer',
+    _ => 'Store',
+  };
 
-  String _price(Object? value) {
-    if (value == null) return 'Harga tidak tersedia';
+  IconData _categoryIcon(String? category) => switch (category) {
+    'restaurant' => Icons.restaurant_outlined,
+    'grocery' => Icons.shopping_basket_outlined,
+    'money_changer' => Icons.currency_exchange,
+    _ => Icons.storefront_outlined,
+  };
 
-    final amount = value is num ? value : num.tryParse('$value');
-    if (amount == null) return '$value';
+  // ---------- Aksi ----------
 
-    return 'Rp ${amount.toStringAsFixed(0)}';
+  void _copy(LatLng p) {
+    final text =
+        '${p.latitude.toStringAsFixed(6)}, ${p.longitude.toStringAsFixed(6)}';
+    Clipboard.setData(ClipboardData(text: text));
+    HapticFeedback.selectionClick();
+    _snack('Coordinates copied');
   }
 
   Future<void> _removeStore(String id, String name) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hapus toko offline?'),
-        content: Text(
-          'Data "$name" akan dihapus dari penyimpanan lokal perangkat ini.',
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Remove this shop?',
+      message: 'The saved copy of "$name" will be removed from this device.',
+      confirmLabel: 'Remove',
+      destructive: true,
+      icon: Icons.delete_outline,
+    );
+    if (!ok || !mounted) return;
+    try {
+      await _service.removeOfflineStore(id);
+      if (!mounted) return;
+      _expanded.remove(id);
+      _loadStores();
+      _snack('Shop removed from this device.');
+    } catch (_) {
+      if (!mounted) return;
+      _snack('Could not remove the shop. Please try again.');
+    }
+  }
+
+  // ---------- Komponen dasar (sama dengan dashboard) ----------
+
+  Widget _underlined(String text, {double size = 16}) {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 2),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.poppins(
+          fontSize: size,
+          fontWeight: FontWeight.w600,
+          color: _ink,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+      ),
+    );
+  }
+
+  Widget _title() {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Text(
+            'Saved Places',
+            maxLines: 1,
+            softWrap: false,
+            style: GoogleFonts.poppins(
+              fontSize: 26,
+              fontWeight: FontWeight.w600,
+              color: _green,
+            ),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Hapus'),
+          Positioned(
+            top: -14,
+            right: -22,
+            child: Text(
+              '*',
+              style: GoogleFonts.poppins(
+                fontSize: 44,
+                fontWeight: FontWeight.w500,
+                color: _green,
+                height: 1,
+              ),
+            ),
           ),
         ],
       ),
     );
+  }
 
-    if (confirmed != true) return;
-
-    await _service.removeOfflineStore(id);
-
-    if (!mounted) return;
-
-    _loadStores();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Toko dihapus dari penyimpanan offline.')),
+  Widget _subtitle() {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 3),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
+      ),
+      child: Text(
+        'Shops and prices saved on this device',
+        style: GoogleFonts.poppins(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: _ink,
+        ),
+      ),
     );
   }
 
-  List<Map<String, dynamic>> get _filteredStores {
-    if (_selectedCategory == 'all') return _stores;
-
-    return _stores.where((store) {
-      return store['category']?.toString() == _selectedCategory;
-    }).toList();
+  Widget _heading(String text, IconData icon, {Widget? trailing}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 32),
+      child: Row(
+        children: [
+          Flexible(child: _underlined(text)),
+          const SizedBox(width: 6),
+          Icon(icon, color: _green, size: 22),
+          if (trailing != null) ...[const Spacer(), trailing],
+        ],
+      ),
+    );
   }
 
-  Widget _sectionHeading(String text, IconData icon) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.only(bottom: 3),
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: Color(0xFF5BAA5F), width: 2),
+  Widget _refreshButton() {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        setState(() => _syncTurns += 1);
+        _locate();
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: AnimatedRotation(
+          turns: _syncTurns,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOutCubic,
+          child: const Icon(Icons.sync, color: _green, size: 22),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniTitle(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.poppins(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: _green,
+      ),
+    );
+  }
+
+  // ---------- Koordinat ----------
+
+  Widget _coordCell(String label, double value, {required bool large}) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: GoogleFonts.poppins(fontSize: 12, color: _grey)),
+          const SizedBox(height: 4),
+          Text(
+            value.toStringAsFixed(6),
+            style: GoogleFonts.poppins(
+              fontSize: large ? 18 : 14.5,
+              fontWeight: FontWeight.w500,
+              color: _green,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _coordBlock(LatLng p, {bool large = false}) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _copy(p),
+      child: Row(
+        children: [
+          Expanded(
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _coordCell('Latitude', p.latitude, large: large),
+                  Container(
+                    width: 1.5,
+                    margin: const EdgeInsets.symmetric(horizontal: 14),
+                    color: _green,
+                  ),
+                  _coordCell('Longitude', p.longitude, large: large),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Icon(Icons.copy_outlined, size: 18, color: _grey),
+        ],
+      ),
+    );
+  }
+
+  Widget _locationSection() {
+    final p = _position;
+    if (p != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _coordBlock(p, large: true),
+          if (_locationMessage != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _locationMessage!,
+                style: GoogleFonts.poppins(fontSize: 12, color: _grey),
+              ),
+            ),
+        ],
+      );
+    }
+    if (_locating) {
+      return Row(
+        children: [
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2.5, color: _green),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Finding your location...',
+            style: GoogleFonts.poppins(fontSize: 12.5, color: _grey),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _locationMessage ?? 'Location unavailable.',
+          style: GoogleFonts.poppins(fontSize: 12.5, color: _grey, height: 1.4),
+        ),
+        TextButton(
+          onPressed: _locate,
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(0, 36),
+            alignment: Alignment.centerLeft,
+          ),
           child: Text(
-            text,
+            'Try again',
             style: GoogleFonts.poppins(
-              fontSize: 19,
               fontWeight: FontWeight.w600,
               color: _green,
             ),
           ),
         ),
-        const SizedBox(width: 10),
-        Icon(icon, color: _green, size: 25),
       ],
     );
   }
 
-  Widget _categoryChip(String label, String value) {
-    final selected = _selectedCategory == value;
+  // ---------- Daftar toko ----------
 
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) {
-        setState(() => _selectedCategory = value);
-      },
-      selectedColor: _green,
-      backgroundColor: _background,
-      labelStyle: GoogleFonts.poppins(
-        fontSize: 12,
-        color: selected ? Colors.white : const Color(0xFF252525),
-        fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+  Widget _chip(String label, String value) {
+    final sel = _category == value;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _category = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: sel ? _green : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: sel ? _green : _border, width: 1.2),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 12.5,
+            fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+            color: sel ? Colors.white : _ink,
+          ),
+        ),
       ),
-      side: BorderSide(
-        color: selected ? _green : const Color(0xFFC9C9C9),
-        width: 1.2,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      showCheckmark: false,
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
     );
   }
 
-  Widget _storeRow(Map<String, dynamic> store) {
-    final id = store['id']?.toString() ?? '';
-    final name = store['name']?.toString() ?? 'Unnamed Store';
-    final items = (store['items'] as List?) ?? const [];
-    final rates = (store['exchange_rates'] as List?) ?? const [];
-    final distance = _distance(store);
-    final expanded = _expandedStoreIds.contains(id);
-
-    final category = store['category']?.toString();
-    final icon = category == 'restaurant'
-        ? Icons.restaurant
-        : category == 'money_changer'
-        ? Icons.currency_exchange
-        : Icons.storefront_outlined;
-
-    return Column(
-      children: [
-        InkWell(
-          onTap: () {
-            setState(() {
-              if (expanded) {
-                _expandedStoreIds.remove(id);
-              } else {
-                _expandedStoreIds.add(id);
-              }
-            });
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            child: Row(
-              children: [
-                Icon(icon, color: _green, size: 27),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF252525),
-                        ),
-                      ),
-                      Text(
-                        _categoryLabel(category),
-                        style: GoogleFonts.poppins(fontSize: 12, color: _grey),
-                      ),
-                      if (distance != null)
-                        Text(
-                          'Jarak lurus: ${formatDistance(distance)}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            color: _green,
-                          ),
-                        ),
-                      Text(
-                        '${items.length} barang tersimpan'
-                        '${rates.isNotEmpty ? ' · ${rates.length} kurs' : ''}',
-                        style: GoogleFonts.poppins(fontSize: 11, color: _grey),
-                      ),
-                    ],
-                  ),
+  Widget _priceRow(String left, String right, {String? sub}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  left,
+                  style: GoogleFonts.poppins(fontSize: 13, color: _ink),
                 ),
-                IconButton(
-                  tooltip: 'Hapus dari penyimpanan offline',
-                  onPressed: () => _removeStore(id, name),
-                  icon: const Icon(Icons.download_done, color: _green),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                right,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _green,
                 ),
-                Icon(
-                  expanded ? Icons.expand_less : Icons.chevron_right,
-                  color: _grey,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-        if (expanded)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFE0E8E3)),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Barang dan harga',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _green,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (items.isEmpty)
-                  Text(
-                    'Belum ada barang tersimpan.',
-                    style: GoogleFonts.poppins(fontSize: 12, color: _grey),
-                  )
-                else
-                  ...items.whereType<Map>().map((item) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item['name']?.toString() ?? 'Barang',
-                              style: GoogleFonts.poppins(fontSize: 12),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _price(item['price']),
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _green,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                if (rates.isNotEmpty) ...[
-                  const Divider(height: 24),
-                  Text(
-                    'Kurs penukaran uang',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _green,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...rates.whereType<Map>().map((rate) {
-                    final currency = rate['currency_code']?.toString() ?? '-';
-                    final amount = rate['foreign_amount']?.toString() ?? '-';
-                    final fee = rate['service_fee_idr'];
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  '$amount $currency',
-                                  style: GoogleFonts.poppins(fontSize: 12),
-                                ),
-                              ),
-                              Text(
-                                _price(rate['idr_amount']),
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: _green,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (fee != null)
-                            Text(
-                              'Biaya layanan: ${_price(fee)}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                color: _grey,
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-                if (store['cached_at'] != null) ...[
-                  const Divider(height: 24),
-                  Text(
-                    'Terakhir disimpan: ${store['cached_at']}',
-                    style: GoogleFonts.poppins(fontSize: 10, color: _grey),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        const Divider(height: 1, color: Color(0xFFDCE5DF)),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final stores = _filteredStores;
-
-    return Scaffold(
-      backgroundColor: _background,
-      appBar: AppBar(
-        backgroundColor: _background,
-        foregroundColor: _green,
-        elevation: 0,
-        title: Text(
-          'Offline Stores',
-          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Perbarui lokasi',
-            onPressed: _loadingLocation ? null : _loadLocation,
-            icon: const Icon(Icons.my_location),
-          ),
+          if (sub != null)
+            Text(sub, style: GoogleFonts.poppins(fontSize: 11.5, color: _grey)),
         ],
       ),
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: RefreshIndicator(
-              onRefresh: () async {
-                _retryMap();
-                _loadStores();
-                await _loadLocation();
-              },
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(28, 20, 28, 36),
+    );
+  }
+
+  Widget _removeButton(String id, String name) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _removeStore(id, name),
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade400, width: 1.2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.delete_outline, size: 18, color: Colors.red.shade600),
+            const SizedBox(width: 8),
+            Text(
+              'Remove from this device',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.red.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _details(_Entry e) {
+    final s = e.store;
+    final category = s['category']?.toString();
+    final rawItems = s['items'];
+    final rawRates = s['exchange_rates'];
+    final items = (rawItems is List ? rawItems : const [])
+        .whereType<Map>()
+        .toList();
+    final rates = (rawRates is List ? rawRates : const [])
+        .whereType<Map>()
+        .toList();
+    final showItems = items.isNotEmpty || rates.isEmpty;
+    final saved = _savedLabel(s['cached_at']);
+    final name = s['name']?.toString() ?? 'Unnamed shop';
+    final id = s['id']?.toString() ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(36, 0, 0, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _miniTitle('Shop Location'),
+          const SizedBox(height: 8),
+          if (e.point != null) ...[
+            _coordBlock(e.point!),
+            if (e.meters != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '${formatDistance(e.meters!)} straight-line from you',
+                  style: GoogleFonts.poppins(fontSize: 12, color: _grey),
+                ),
+              ),
+          ] else
+            Text(
+              'Location not available',
+              style: GoogleFonts.poppins(fontSize: 12.5, color: _grey),
+            ),
+          if (showItems) ...[
+            const SizedBox(height: 18),
+            _miniTitle(_itemsTitle(category)),
+            const SizedBox(height: 4),
+            if (items.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  'Nothing saved yet.',
+                  style: GoogleFonts.poppins(fontSize: 12.5, color: _grey),
+                ),
+              )
+            else
+              for (final item in items)
+                _priceRow(
+                  item['name']?.toString() ?? 'Item',
+                  _idr(item['price']),
+                ),
+          ],
+          if (rates.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _miniTitle('Exchange Rates'),
+            const SizedBox(height: 4),
+            for (final rate in rates)
+              _priceRow(
+                '${_plain(rate['foreign_amount'])} ${rate['currency_code'] ?? '-'}',
+                _idr(rate['idr_amount']),
+                sub: rate['service_fee_idr'] == null
+                    ? null
+                    : 'Service fee: ${_idr(rate['service_fee_idr'])}',
+              ),
+          ],
+          if (saved != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                saved,
+                style: GoogleFonts.poppins(fontSize: 11.5, color: _grey),
+              ),
+            ),
+          const SizedBox(height: 16),
+          _removeButton(id, name),
+        ],
+      ),
+    );
+  }
+
+  Widget _storeRow(_Entry e, {required bool last}) {
+    final s = e.store;
+    final id = s['id']?.toString() ?? '';
+    final name = s['name']?.toString() ?? 'Unnamed shop';
+    final category = s['category']?.toString();
+    final expanded = _expanded.contains(id);
+
+    return Container(
+      decoration: BoxDecoration(
+        border: last
+            ? null
+            : Border(bottom: BorderSide(color: _border.withValues(alpha: 0.6))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() {
+              if (expanded) {
+                _expanded.remove(id);
+              } else {
+                _expanded.add(id);
+              }
+            }),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Row(
                 children: [
-                  Text(
-                    'Your Saved Places',
-                    style: GoogleFonts.poppins(
-                      fontSize: 27,
-                      fontWeight: FontWeight.w600,
-                      color: _green,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Toko dan informasi harga yang tersimpan di perangkat ini.',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: const Color(0xFF252525),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE6F1E8),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
+                  Icon(_categoryIcon(category), size: 22, color: _green),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.offline_pin_outlined,
-                          color: _green,
-                          size: 21,
+                        Text(
+                          name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w500,
+                            color: _ink,
+                          ),
                         ),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Text(
-                            '${_stores.length} toko tersimpan secara lokal',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: _green,
-                            ),
+                        Text(
+                          _categoryLabel(category),
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: _grey,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  _buildHybridMap(),
-                  if (_locationMessage != null) ...[
-                    const SizedBox(height: 12),
+                  if (e.meters != null) ...[
+                    const SizedBox(width: 12),
                     Text(
-                      _locationMessage!,
-                      style: GoogleFonts.poppins(fontSize: 11, color: _grey),
+                      formatDistance(e.meters!),
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _green,
+                      ),
                     ),
                   ],
-                  const SizedBox(height: 32),
-                  _sectionHeading('Saved Shops', Icons.storefront_outlined),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Category',
-                    style: GoogleFonts.poppins(fontSize: 13, color: _grey),
+                  const SizedBox(width: 4),
+                  AnimatedRotation(
+                    turns: expanded ? 0.25 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(
+                      Icons.chevron_right,
+                      size: 22,
+                      color: _grey,
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 7,
-                    runSpacing: 5,
-                    children: [
-                      _categoryChip('All', 'all'),
-                      _categoryChip('Local Restaurant', 'restaurant'),
-                      _categoryChip('Grocery Store', 'grocery'),
-                      _categoryChip('Money Changer', 'money_changer'),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (stores.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 44),
-                      child: Column(
-                        children: [
-                          const Icon(
-                            Icons.cloud_off_outlined,
-                            size: 54,
-                            color: _grey,
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            _stores.isEmpty
-                                ? 'Belum ada toko tersimpan'
-                                : 'Tidak ada toko pada kategori ini',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.poppins(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: _green,
-                            ),
-                          ),
-                          const SizedBox(height: 7),
-                          Text(
-                            _stores.isEmpty
-                                ? 'Simpan toko dari halaman utama saat terhubung ke internet.'
-                                : 'Coba pilih kategori lain.',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: _grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    ...stores.map(_storeRow),
                 ],
               ),
             ),
           ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: expanded
+                ? _details(e)
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    final none = _stores.isEmpty;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 36),
+      child: Center(
+        child: Column(
+          children: [
+            const Icon(Icons.cloud_off_outlined, size: 40, color: _grey),
+            const SizedBox(height: 12),
+            Text(
+              none ? 'No saved shops yet' : 'No saved shops in this category',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: _ink,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              none
+                  ? "Save shops while you're online and they will show up here."
+                  : 'Try another category.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 12.5,
+                color: _grey,
+                height: 1.4,
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _shopList(List<_Entry> entries) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      child: KeyedSubtree(
+        key: ValueKey(_category),
+        child: entries.isEmpty
+            ? _emptyState()
+            : Column(
+                children: [
+                  for (var i = 0; i < entries.length; i++)
+                    _storeRow(entries[i], last: i == entries.length - 1),
+                ],
+              ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = _entries;
+    final count = _stores.length;
+    final caption = count == 0
+        ? 'Nothing saved yet'
+        : '$count ${count == 1 ? 'shop' : 'shops'} saved on this device'
+              '${_position != null ? ' \u00B7 nearest first' : ''}';
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Scaffold(
+          backgroundColor: _bg,
+          body: SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: RefreshIndicator(
+                  color: _green,
+                  onRefresh: _refresh,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(28, 56, 28, 140),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _title(),
+                        const SizedBox(height: 12),
+                        _subtitle(),
+                        _heading(
+                          'My Location',
+                          Icons.my_location,
+                          trailing: _refreshButton(),
+                        ),
+                        const SizedBox(height: 14),
+                        _locationSection(),
+                        _heading('Saved Shops', Icons.storefront_outlined),
+                        const SizedBox(height: 8),
+                        Text(
+                          caption,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12.5,
+                            color: _grey,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Category',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: _grey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final c in _categories) _chip(c.$2, c.$1),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        _shopList(entries),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const UserRadialMenu(),
+      ],
     );
   }
 }
