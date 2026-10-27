@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/home/business_home_page.dart';
+import 'package:sekitaran/features/home/regular_home_page.dart';
 import 'package:sekitaran/features/auth/auth_service.dart';
 
 enum UserRole { regular, business }
@@ -36,10 +37,10 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
           (_) => false,
         );
       } else {
-        // TODO: homepage Reguler User (belum ada desain)
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('Role tersimpan.')));
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const RegularHomePage()),
+          (_) => false,
+        );
       }
     } on AuthFailure catch (e) {
       if (!mounted) return;
