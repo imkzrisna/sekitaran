@@ -7,7 +7,6 @@ import 'package:sekitaran/features/blockchain/infrastructure/supabase_transactio
 import 'package:sekitaran/features/blockchain/infrastructure/supabase_wallet_gateway.dart';
 import 'package:sekitaran/features/blockchain/transaction.dart';
 import 'package:sekitaran/features/global_chat/adapter/session_manager/supabase_session_manager.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BlockchainService {
   BlockchainService(
@@ -111,5 +110,19 @@ class BlockchainService {
     }
 
     return credit - debit;
+  }
+
+  /// Balance of the currently signed-in user (SKT). Resolves the user's wallet
+  /// address from the session and returns credit minus debit. Returns `0.0`
+  /// when there is no session or no wallet address registered, so the dashboard
+  /// never crashes on an empty or unauthenticated state.
+  Future<double> getCurrentUserBalanceAsync() async {
+    final session = _session.currentSession;
+    if (session == null) return 0.0;
+
+    final address = await _wallet.getWalletAddressById(session.userId);
+    if (address.isEmpty) return 0.0;
+
+    return getBallanceAsync(address);
   }
 }
