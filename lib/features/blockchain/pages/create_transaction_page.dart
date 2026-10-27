@@ -39,8 +39,8 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
 
   Future<void> initStateAsync() async {
     await _session.signInWithPasswordAsync(
-      email: "124240154@student.upnyk.ac.id",
-      password: "sayakurangtawu3",
+      email: "krizsna.mz@gmail.com",
+      password: "sayakurangtawu2",
     );
   }
 
@@ -86,6 +86,14 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
     try {
       final giverAddress = await _wallet.getWalletAddressById(user.userId);
       final amount = double.parse(_amountController.text);
+
+      final balance = await _service.getBallanceAsync(giverAddress);
+
+      if (amount > balance) {
+        if (mounted) setState(() => _submitting = false);
+        _snack('Insufficient balance');
+        return;
+      }
 
       await _service.addTransactionAsync(
         Transaction(

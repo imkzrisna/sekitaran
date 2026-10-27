@@ -7,6 +7,7 @@ import 'package:sekitaran/features/blockchain/infrastructure/supabase_transactio
 import 'package:sekitaran/features/blockchain/infrastructure/supabase_wallet_gateway.dart';
 import 'package:sekitaran/features/blockchain/transaction.dart';
 import 'package:sekitaran/features/global_chat/adapter/session_manager/supabase_session_manager.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BlockchainService {
   BlockchainService(
@@ -86,5 +87,29 @@ class BlockchainService {
     if (_session.currentSession == null) return;
 
     await _transaction.addAsync(transaction);
+  }
+
+  Future<double> getBallanceAsync(String walletAddress) async {
+    final creditTransactions = (await _transaction.getAllAsync())
+        .where((transaction) => transaction.receiverAddress == walletAddress)
+        .toList();
+
+    final debitTransactions = (await _transaction.getAllAsync())
+        .where((transaction) => transaction.giverAddress == walletAddress)
+        .toList();
+
+    var credit = 0.0;
+
+    for (var creditTransaction in creditTransactions) {
+      credit += creditTransaction.transactionAmount;
+    }
+
+    var debit = 0.0;
+
+    for (var debitTransaction in debitTransactions) {
+      debit += debitTransaction.transactionAmount;
+    }
+
+    return credit - debit;
   }
 }

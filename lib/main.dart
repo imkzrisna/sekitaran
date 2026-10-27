@@ -36,7 +36,7 @@ class MyApp extends StatelessWidget {
           },
         ),
       ),
-      home: MiningPage(),
+      home: CreateTransactionPage(),
     );
   }
 }
