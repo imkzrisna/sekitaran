@@ -379,23 +379,7 @@ class _AllCommentsPageState extends State<AllCommentsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 28, 16),
-                  child: IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    padding: EdgeInsets.zero,
-                    alignment: Alignment.centerLeft,
-                    constraints: const BoxConstraints(
-                      minWidth: 40,
-                      minHeight: 40,
-                    ),
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new,
-                      size: 20,
-                      color: _green,
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 56),
                 _header(),
                 Expanded(child: _body()),
               ],
