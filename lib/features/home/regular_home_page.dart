@@ -43,10 +43,31 @@ class _RegularHomePageState extends State<RegularHomePage>
   String? _shopsError;
   final _offlineService = OfflineStoreService.instance;
   final Set<String> _savingOfflineIds = {};
+  static const _warn = Color(0xFFD9822B);
+  final Set<String> _updatable = {};
+
+  Future<void> _checkUpdates() async {
+    final ids = [
+      for (final s in _shops)
+        if (_offlineService.isStoreAvailableOffline(s.id)) s.id,
+    ];
+    for (final id in ids) {
+      final r = await _offlineService.checkForUpdate(id);
+      if (!mounted) return;
+      setState(() {
+        if (r == true) {
+          _updatable.add(id);
+        } else {
+          _updatable.remove(id);
+        }
+      });
+    }
+  }
 
   Future<void> _saveShopOffline(Shop shop) async {
+    final wasUpdate = _updatable.contains(shop.id);
     if (_savingOfflineIds.contains(shop.id) ||
-        _offlineService.isStoreAvailableOffline(shop.id)) {
+        (_offlineService.isStoreAvailableOffline(shop.id) && !wasUpdate)) {
       return;
     }
 
@@ -55,8 +76,12 @@ class _RegularHomePageState extends State<RegularHomePage>
     try {
       await _offlineService.savePublicStoreForOffline(shop.id);
       if (!mounted) return;
-      setState(() {});
-      _snack('Toko ${shop.name} berhasil disimpan untuk offline.');
+      setState(() => _updatable.remove(shop.id));
+      _snack(
+        wasUpdate
+            ? 'Data ${shop.name} berhasil diperbarui.'
+            : 'Toko ${shop.name} berhasil disimpan untuk offline.',
+      );
     } on OfflineStoreFailure catch (e) {
       if (mounted) _snack(e.message);
     } catch (_) {
@@ -73,7 +98,10 @@ class _RegularHomePageState extends State<RegularHomePage>
   Future<void> _openOfflineStores() async {
     await Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const SavedPlacesPage()));
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+      _checkUpdates();
+    }
   }
 
   @override
@@ -134,6 +162,7 @@ class _RegularHomePageState extends State<RegularHomePage>
         _shops = shops;
         _shopsError = null;
       });
+      _checkUpdates();
       _fitSoon();
     } on ShopsFailure catch (e) {
       if (mounted) setState(() => _shopsError = e.message);
@@ -489,6 +518,7 @@ class _RegularHomePageState extends State<RegularHomePage>
   Widget _shopRow(ShopDistance d, LatLng here, {required bool last}) {
     final isSaved = _offlineService.isStoreAvailableOffline(d.shop.id);
     final isSaving = _savingOfflineIds.contains(d.shop.id);
+    final hasUpdate = _updatable.contains(d.shop.id);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -525,8 +555,12 @@ class _RegularHomePageState extends State<RegularHomePage>
                     ),
                   ),
                   Text(
-                    d.shop.category.label,
-                    style: GoogleFonts.poppins(fontSize: 12, color: _grey),
+                    hasUpdate ? 'Update available' : d.shop.category.label,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: hasUpdate ? FontWeight.w600 : FontWeight.w400,
+                      color: hasUpdate ? _warn : _grey,
+                    ),
                   ),
                 ],
               ),
@@ -542,8 +576,10 @@ class _RegularHomePageState extends State<RegularHomePage>
             ),
             const SizedBox(width: 4),
             IconButton(
-              tooltip: isSaved ? 'Tersimpan offline' : 'Simpan untuk offline',
-              onPressed: (isSaved || isSaving)
+              tooltip: hasUpdate
+                  ? 'Perbarui data offline'
+                  : (isSaved ? 'Tersimpan offline' : 'Simpan untuk offline'),
+              onPressed: (isSaving || (isSaved && !hasUpdate))
                   ? null
                   : () => _saveShopOffline(d.shop),
               icon: isSaving
@@ -553,10 +589,12 @@ class _RegularHomePageState extends State<RegularHomePage>
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : Icon(
-                      isSaved
-                          ? Icons.offline_pin
-                          : Icons.download_for_offline_outlined,
-                      color: isSaved ? _green : _grey,
+                      hasUpdate
+                          ? Icons.sync_problem_outlined
+                          : (isSaved
+                                ? Icons.offline_pin
+                                : Icons.download_for_offline_outlined),
+                      color: hasUpdate ? _warn : (isSaved ? _green : _grey),
                     ),
             ),
             const Icon(Icons.chevron_right, size: 22, color: _grey),

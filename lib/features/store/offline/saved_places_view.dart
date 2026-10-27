@@ -57,12 +57,16 @@ class _SavedPlacesViewState extends State<SavedPlacesView> {
   String _category = 'all';
   final Set<String> _expanded = <String>{};
   double _syncTurns = 0;
+  static const _warn = Color(0xFFD9822B);
+  final Set<String> _updatable = {};
+  final Set<String> _updating = {};
 
   @override
   void initState() {
     super.initState();
     _stores = List.of(_service.getOfflineStores());
     _locate();
+    _checkUpdates();
   }
 
   // ---------- Data ----------
@@ -80,6 +84,7 @@ class _SavedPlacesViewState extends State<SavedPlacesView> {
   Future<void> _refresh() async {
     _loadStores();
     await _locate();
+    _checkUpdates();
   }
 
   Future<void> _locate() async {
@@ -119,6 +124,40 @@ class _SavedPlacesViewState extends State<SavedPlacesView> {
       _fail('Location unavailable. Your saved shops can still be opened.');
     } finally {
       if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  Future<void> _checkUpdates() async {
+    for (final s in List.of(_stores)) {
+      final id = s['id']?.toString() ?? '';
+      if (id.isEmpty) continue;
+      final r = await _service.checkForUpdate(id);
+      if (!mounted) return;
+      setState(() {
+        if (r == true) {
+          _updatable.add(id);
+        } else {
+          _updatable.remove(id);
+        }
+      });
+    }
+  }
+
+  Future<void> _updateStore(String id) async {
+    if (_updating.contains(id)) return;
+    setState(() => _updating.add(id));
+    try {
+      await _service.savePublicStoreForOffline(id);
+      if (!mounted) return;
+      _updatable.remove(id);
+      _loadStores();
+      _snack('Shop data updated.');
+    } on OfflineStoreFailure catch (e) {
+      if (mounted) _snack(e.message);
+    } catch (_) {
+      if (mounted) _snack('Could not update the shop. Please try again.');
+    } finally {
+      if (mounted) setState(() => _updating.remove(id));
     }
   }
 
@@ -663,6 +702,56 @@ class _SavedPlacesViewState extends State<SavedPlacesView> {
                 style: GoogleFonts.poppins(fontSize: 11.5, color: _grey),
               ),
             ),
+          if (_updatable.contains(id)) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _warn.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _warn, width: 1.2),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.sync_problem_outlined,
+                    size: 20,
+                    color: _warn,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'The owner updated this shop since you saved it.',
+                      style: GoogleFonts.poppins(fontSize: 12, color: _ink),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _updateStore(id),
+                    child: _updating.contains(id)
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: _warn,
+                            ),
+                          )
+                        : Text(
+                            'Update',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: _warn,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           _removeButton(id, name),
         ],
@@ -716,10 +805,15 @@ class _SavedPlacesViewState extends State<SavedPlacesView> {
                           ),
                         ),
                         Text(
-                          _categoryLabel(category),
+                          _updatable.contains(id)
+                              ? 'Update available'
+                              : _categoryLabel(category),
                           style: GoogleFonts.poppins(
                             fontSize: 12,
-                            color: _grey,
+                            fontWeight: _updatable.contains(id)
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: _updatable.contains(id) ? _warn : _grey,
                           ),
                         ),
                       ],
