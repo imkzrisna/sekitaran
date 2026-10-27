@@ -764,7 +764,9 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
         const SizedBox(height: 14),
         _commentInput(),
         const SizedBox(height: 6),
-        if (d.comments.isEmpty)
+        if (d.commentsFailed)
+          _message('Could not load comments.', onRetry: _load)
+        else if (d.comments.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 20),
             child: Text(

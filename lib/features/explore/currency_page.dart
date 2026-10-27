@@ -10,7 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/indonesia_geo.dart';
 import 'package:sekitaran/core/location_error_view.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
-import 'package:sekitaran/features/explore/route_map_page.dart';
+import 'package:sekitaran/features/explore/shop_detail_page.dart';
 import 'package:sekitaran/features/home/radial_nav_menu.dart';
 
 class _Rate {
@@ -765,7 +765,7 @@ class _CurrencyPageState extends State<CurrencyPage>
       child: _Press(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => RouteMapPage(origin: here, shop: e.changer.shop),
+            builder: (_) => ShopDetailPage(origin: here, shop: e.changer.shop),
           ),
         ),
         child: Container(
