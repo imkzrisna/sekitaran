@@ -48,4 +48,4 @@ app.*.map.json
 .widget_preview/
 env.json
 
-./run-with-env.sh
+run-with-env.sh

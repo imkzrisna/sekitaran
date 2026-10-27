@@ -73,7 +73,7 @@ void main() {
 
     final result = wordleInstance.guess("fromm");
 
-    expect(result.history.length == 6, true);
+    expect(result.history.length == 7, true);
   });
 
   test("when failing to guess and then guesses successfully, should have the provided result history", () async {

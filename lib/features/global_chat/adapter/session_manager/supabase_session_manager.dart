@@ -5,6 +5,25 @@ import 'package:sekitaran/features/global_chat/vo/auth_session.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseSessionManager implements SessionManagerInterface {
+  new() {
+    final currentSession = Supabase.instance.client.auth.currentSession;
+
+    if (currentSession == null) {
+      _currentSession = null;
+      return;
+    }
+
+    _currentSession = AuthSession(
+      userId: currentSession.user.id,
+      email: currentSession.user.email!,
+      accessToken: currentSession.accessToken,
+      refreshToken: currentSession.refreshToken!,
+      expiresAt: DateTime.now().add(
+        Duration(seconds: currentSession.expiresAt!),
+      ),
+    );
+  }
+
   final client = Supabase.instance.client;
 
   AuthSession? _currentSession;
