@@ -1,15 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
-=======
-import 'package:sekitaran/features/blockchain/pages/blockchain_dashboard_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
->>>>>>> feature-blockchain
 import 'package:sekitaran/core/supabase_config.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:sekitaran/features/store/offline/offline_store_cache.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,9 +31,7 @@ class MyApp extends StatelessWidget {
       title: 'Sekitaran',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF103D17),
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF103D17)),
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: {
             TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
