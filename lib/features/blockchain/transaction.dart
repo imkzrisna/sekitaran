@@ -1,10 +1,16 @@
 import 'package:uuid/uuid.dart';
 
 class Transaction {
-  new(this.giverUserId, this.transactionAmount, this.memo);
+  new(
+    this.giverAddress,
+    this.receiverAddress,
+    this.transactionAmount,
+    this.memo,
+  );
 
   String id = Uuid().v4();
-  String giverUserId;
+  String giverAddress;
+  String receiverAddress;
   DateTime transactionDate = DateTime.now();
   double transactionAmount;
   String memo;

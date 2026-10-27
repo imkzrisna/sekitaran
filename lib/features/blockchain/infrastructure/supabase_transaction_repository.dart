@@ -4,9 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseTransactionRepository {
   Future<void> addAsync(Transaction transaction) async {
     await Supabase.instance.client.from("blockchain_transaction").insert({
-      "transaction_date": transaction.transactionDate.toString(),
+      "id": transaction.id,
+      "transaction_date": transaction.transactionDate.toIso8601String(),
+      "giver_address": transaction.giverAddress,
+      "receiver_address": transaction.receiverAddress,
       "transaction_amount": transaction.transactionAmount,
-      "user_id": transaction.giverUserId,
       "memo": transaction.memo,
       "status": transaction.status,
     });
@@ -17,19 +19,7 @@ class SupabaseTransactionRepository {
         .from("blockchain_transaction")
         .select("*");
 
-    return rows
-        .map(
-          (row) =>
-              Transaction(
-                    row["user_id"],
-                    row["transaction_amount"],
-                    row["memo"],
-                  )
-                  .withId(row["id"])
-                  .withTransactionDate(DateTime.parse(row["transaction_date"]))
-                  .withStatus(row["status"]),
-        )
-        .toList();
+    return rows.map((row) => _toTransaction(row)).toList();
   }
 
   Future<Transaction?> getByIdAsync(String id) async {
@@ -38,32 +28,32 @@ class SupabaseTransactionRepository {
         .select("*")
         .eq("id", id);
 
-    return row
-        .map(
-          (row) =>
-              Transaction(
-                    row["user_id"],
-                    row["transaction_amount"],
-                    row["memo"],
-                  )
-                  .withId(row["id"])
-                  .withTransactionDate(row["transaction_date"])
-                  .withStatus(row["status"]),
-        )
-        .toList()
-        .firstOrNull;
+    return row.map((row) => _toTransaction(row)).toList().firstOrNull;
   }
 
   Future<void> updateAsync(Transaction transaction) async {
     await Supabase.instance.client
         .from("blockchain_transaction")
         .update({
-          "transaction_date": transaction.transactionDate,
+          "transaction_date": transaction.transactionDate.toIso8601String(),
+          "giver_address": transaction.giverAddress,
+          "receiver_address": transaction.receiverAddress,
           "transaction_amount": transaction.transactionAmount,
-          "user_id": transaction.giverUserId,
           "memo": transaction.memo,
           "status": transaction.status,
         })
         .eq("id", transaction.id);
+  }
+
+  Transaction _toTransaction(Map<String, dynamic> row) {
+    return Transaction(
+          row["giver_address"],
+          row["receiver_address"],
+          row["transaction_amount"],
+          row["memo"],
+        )
+        .withId(row["id"])
+        .withTransactionDate(DateTime.parse(row["transaction_date"]))
+        .withStatus(row["status"]);
   }
 }

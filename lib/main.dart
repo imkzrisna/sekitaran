@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
 import 'package:sekitaran/features/blockchain/pages/create_transaction_page.dart';
+import 'package:sekitaran/features/blockchain/pages/mining_page.dart';
+import 'package:sekitaran/features/blockchain/pages/register_wallet_page.dart';
 import 'package:sekitaran/features/chat/global_chat_page.dart';
 import 'package:sekitaran/features/global_chat/scratchpad/chat_scratchpad.dart';
 import 'package:sekitaran/features/wordle/wordle_page.dart';
@@ -34,7 +36,7 @@ class MyApp extends StatelessWidget {
           },
         ),
       ),
-      home: CreateTransactionPage(),
+      home: MiningPage(),
     );
   }
 }

@@ -27,13 +27,22 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
   final _amountController = TextEditingController();
   final _memoController = TextEditingController();
 
-  late final SupabaseSessionManager _session;
-  late final SupabaseTransactionRepository _transaction;
-  late final SupabaseBlockChainGateway _gateway;
-  late final SupabaseWalletGateway _wallet;
-  late final BlockchainService _service;
+  late SupabaseSessionManager _session;
+  late SupabaseTransactionRepository _transaction;
+  late SupabaseBlockChainGateway _gateway;
+  late SupabaseWalletGateway _wallet;
+  late BlockchainService _service;
 
   bool _submitting = false;
+
+  late Future<void> _initStateAsyncFuture;
+
+  Future<void> initStateAsync() async {
+    await _session.signInWithPasswordAsync(
+      email: "124240154@student.upnyk.ac.id",
+      password: "sayakurangtawu3",
+    );
+  }
 
   @override
   void initState() {
@@ -44,6 +53,8 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
     _gateway = SupabaseBlockChainGateway(1);
     _wallet = SupabaseWalletGateway();
     _service = BlockchainService(_gateway, _transaction, _session, _wallet);
+
+    _initStateAsyncFuture = initStateAsync();
   }
 
   @override
@@ -54,56 +65,52 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
     super.dispose();
   }
 
-  void _snack(String message) {
+  void _snack(String m) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+      ..showSnackBar(SnackBar(content: Text(m)));
   }
 
   Future<void> _submit() async {
+    if (_formKey.currentState?.validate() != true) return;
     if (_submitting) return;
 
-    final session = _session.currentSession;
-    if (session == null) {
-      _snack('Please log in before creating a transaction.');
+    final user = _session.currentSession;
+    if (user == null) {
+      _snack('Please log in first.');
       return;
     }
-    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _submitting = true);
 
-    String giverAddress;
     try {
-      giverAddress = await _wallet.getWalletAddressById(session.userId);
-    } catch (_) {
-      if (mounted) _snack('Could not find your wallet.');
-      if (mounted) setState(() => _submitting = false);
-      return;
-    }
+      final giverAddress = await _wallet.getWalletAddressById(user.userId);
+      final amount = double.parse(_amountController.text);
 
-    try {
       await _service.addTransactionAsync(
         Transaction(
           giverAddress,
           _receiverController.text.trim(),
-          double.parse(_amountController.text.trim()),
+          amount,
           _memoController.text.trim(),
         ),
       );
+
       if (!mounted) return;
-      _formKey.currentState!.reset();
+      _formKey.currentState?.reset();
       _receiverController.clear();
       _amountController.clear();
       _memoController.clear();
       _snack('Transaction submitted');
-    } catch (_) {
-      if (mounted) _snack('Could not create the transaction. Please try again.');
+    } catch (error) {
+      if (!mounted) return;
+      _snack('Could not submit the transaction. Please try again.');
+
+      print("failed to submit transaction: $error");
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
-
-  // ---------- Komponen dasar (sama dengan profile page) ----------
 
   Widget _underlined(String text, {double size = 16}) {
     return Container(
@@ -122,181 +129,98 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
     );
   }
 
-  Widget _title() {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerLeft,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Text(
-            'Create Transaction',
-            maxLines: 1,
-            softWrap: false,
-            style: GoogleFonts.poppins(
-              fontSize: 26,
-              fontWeight: FontWeight.w600,
-              color: _green,
-            ),
-          ),
-          Positioned(
-            top: -14,
-            right: -22,
-            child: Text(
-              '*',
-              style: GoogleFonts.poppins(
-                fontSize: 44,
-                fontWeight: FontWeight.w500,
-                color: _green,
-                height: 1,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _subtitle() {
-    final style = GoogleFonts.poppins(
-      fontSize: 15,
-      fontWeight: FontWeight.w500,
-      color: _ink,
-      height: 1.5,
-    );
-    Widget word(String t) => Text(t, style: style);
-    return Wrap(
-      spacing: 5,
-      children: [
-        word('Send'),
-        Container(
-          decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: _accent, width: 1.5)),
-          ),
-          child: word('a transaction'),
-        ),
-        word('to'),
-        word('another'),
-        word('wallet.'),
-      ],
-    );
-  }
-
   Widget _header() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 20),
-        _title(),
+        const SizedBox(height: 28),
+        Text(
+          'Create Transaction',
+          style: GoogleFonts.poppins(
+            fontSize: 26,
+            fontWeight: FontWeight.w600,
+            color: _green,
+          ),
+        ),
         const SizedBox(height: 14),
-        _subtitle(),
+        Text(
+          'Send funds to another Sekitaran wallet.',
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: _ink,
+            height: 1.5,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _heading(String text, IconData icon, {String? caption}) {
+  Widget _formField({
+    required TextEditingController controller,
+    required String label,
+    required String? Function(String?)? validator,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+  }) {
     return Padding(
-      padding: const EdgeInsets.only(top: 32),
+      padding: const EdgeInsets.only(top: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Flexible(child: _underlined(text)),
-              const SizedBox(width: 6),
-              Icon(icon, color: _green, size: 22),
-            ],
-          ),
-          if (caption != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                caption,
-                style: GoogleFonts.poppins(fontSize: 12.5, color: _grey),
+          Text(label, style: GoogleFonts.poppins(fontSize: 13, color: _grey)),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            maxLines: maxLines,
+            validator: validator,
+            style: GoogleFonts.poppins(fontSize: 14, color: _ink),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _green, width: 1.5),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.red.shade400),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
               ),
             ),
+          ),
         ],
       ),
     );
   }
 
-  // ---------- Form ----------
-
-  Widget _field(
-    TextEditingController controller,
-    String hint, {
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        validator: validator,
-        style: GoogleFonts.poppins(fontSize: 14.5, color: _ink),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: GoogleFonts.poppins(fontSize: 14, color: _grey),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: _border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: _border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: _accent, width: 1.5),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.red.shade400),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String? _required(String? value) {
-    if (value == null || value.trim().isEmpty) return 'This field is required';
-    return null;
-  }
-
-  String? _amount(String? value) {
-    final required = _required(value);
-    if (required != null) return required;
-    final amount = double.tryParse(value!.trim());
-    if (amount == null || amount <= 0) {
-      return 'Enter an amount greater than zero';
-    }
-    return null;
-  }
-
   Widget _submitButton() {
     return Padding(
-      padding: const EdgeInsets.only(top: 40),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _submitting ? null : _submit,
-        child: Container(
-          width: double.infinity,
-          height: 52,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: _green,
-            borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.only(top: 32),
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: FilledButton(
+          onPressed: _submitting ? null : _submit,
+          style: FilledButton.styleFrom(
+            backgroundColor: _green,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: _submitting
               ? const SizedBox(
@@ -307,24 +231,13 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
                     color: Colors.white,
                   ),
                 )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.swap_horiz,
-                      size: 20,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Submit',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
+              : Text(
+                  'Submit',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
         ),
       ),
@@ -335,45 +248,67 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(28, 8, 28, 140),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _header(),
-                    _heading(
-                      'Transfer Details',
-                      Icons.swap_horiz,
-                      caption: 'Amount, recipient, and an optional memo',
+      body: FutureBuilder(
+        future: _initStateAsyncFuture,
+        builder: (context, snapshot) {
+          return SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(28, 8, 28, 140),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _header(),
+                        const SizedBox(height: 32),
+                        _underlined('Recipient'),
+                        const SizedBox(height: 6),
+                        _formField(
+                          controller: _receiverController,
+                          label: 'Wallet address',
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Recipient address is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        _formField(
+                          controller: _amountController,
+                          label: 'Amount',
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Amount is required';
+                            }
+                            final parsed = double.tryParse(value.trim());
+                            if (parsed == null || parsed <= 0) {
+                              return 'Enter a valid amount';
+                            }
+                            return null;
+                          },
+                        ),
+                        _formField(
+                          validator: (value) {},
+                          controller: _memoController,
+                          label: 'Memo (optional)',
+                          maxLines: 2,
+                        ),
+                        _submitButton(),
+                      ],
                     ),
-                    _field(
-                      _receiverController,
-                      'Recipient wallet address',
-                      validator: _required,
-                    ),
-                    _field(
-                      _amountController,
-                      'Amount',
-                      keyboardType: TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      validator: _amount,
-                    ),
-                    _field(_memoController, 'Memo (optional)'),
-                    _submitButton(),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

@@ -31,7 +31,7 @@ class SupabaseBlockChainGateway {
     return Block(singleRow["previous_hash"], singleRow["data"])
         .withId(singleRow["id"])
         .withNonce(singleRow["nonce"])
-        .withCreationDate(singleRow["created_at"])
+        .withCreationDate(DateTime.parse(singleRow["created_at"]))
         .withHash(singleRow["hash"]);
   }
 
@@ -42,12 +42,12 @@ class SupabaseBlockChainGateway {
     await Supabase.instance.client.from("block").insert({
       "hash": block.hash,
       "data": block.data,
-      "previousHash": block.previousHash,
+      "previous_hash": block.previousHash,
       "nonce": block.nonce,
     });
   }
 
-  Future<bool> isValidChainAsync() async {
+  Future<bool> isValidChain() async {
     final blockchainRow = await Supabase.instance.client
         .from("block")
         .select("*");
