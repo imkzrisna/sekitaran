@@ -569,7 +569,9 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
           for (var i = 0; i < d.items.length; i++)
             _priceRow(
               d.items[i].name,
-              formatRupiah(d.items[i].price),
+              d.items[i].price == null
+                  ? 'Price not set'
+                  : formatRupiah(d.items[i].price!),
               last: i == d.items.length - 1,
             ),
       ],
