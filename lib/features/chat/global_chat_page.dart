@@ -203,7 +203,7 @@ class _GlobalChatPageState extends State<GlobalChatPage> {
               ),
             ),
             child: Text(
-              'Ngobrol dengan sesama pengguna Sekitaran',
+              'Connect with other Sekitaran users',
               style: GoogleFonts.poppins(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w500,
