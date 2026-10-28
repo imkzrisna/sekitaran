@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
           },
         ),
       ),
-      home: BusinessAssistantPage(),
+      home: const LoginPage(),
     );
   }
 }

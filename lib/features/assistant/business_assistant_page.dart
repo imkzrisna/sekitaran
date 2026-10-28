@@ -64,14 +64,14 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
     final question = _input.text.trim();
     if (question.length < 3) {
       setState(() {
-        _error = 'Please enter at least 3 characters.';
+        _error = 'Isi minimal tiga karakter';
         _lastQuestion = null;
       });
       return;
     }
     if (question.length > _maxQuestionLength) {
       setState(() {
-        _error = 'Keep your question under 500 characters.';
+        _error = 'Maksimal 500 huruf';
         _lastQuestion = null;
       });
       return;
@@ -161,20 +161,20 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
             const Icon(Icons.auto_awesome, size: 38, color: _green),
             const SizedBox(height: 12),
             Text(
-              'Ask what customers say about local businesses',
+              'Tanyakan apa yang pelanggan bilang soal bisnis lokal',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium
                   ?.copyWith(color: _green, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             const Text(
-              'Ask general questions about a store or customer experiences. Answers are based on comments, with sources shown.',
+              'Tanyakan pertanyaan umum about suatu toko atau pengalaman pelanggan. Jawaban berbasis komentar dengan bukti yang dipaparkan',
               textAlign: TextAlign.center,
               style: TextStyle(color: _grey, height: 1.5),
             ),
             const SizedBox(height: 12),
             const Text(
-              'Your question and relevant public comment excerpts are sent to Gemini. This conversation is not saved.',
+              'Pertanyaanmu dan komentar publik yang relevant akan dikirim ke Gemini, percakapan ini tidak di save',
               textAlign: TextAlign.center,
               style: TextStyle(color: _grey, fontSize: 12, height: 1.4),
             ),
@@ -291,7 +291,8 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
                     textCapitalization: TextCapitalization.sentences,
                     onSubmitted: (_) => _send(),
                     decoration: InputDecoration(
-                      hintText: 'Ask what customers say about a store...',
+                      hintText:
+                          'Tanyakan apa yang pelanggan bilang soal suatu toko',
                       counterText: '',
                       filled: true,
                       fillColor: Colors.white,
@@ -308,7 +309,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
                 ),
                 const SizedBox(width: 8),
                 IconButton.filled(
-                  tooltip: 'Send question',
+                  tooltip: 'Kirim pesan',
                   onPressed: _sending ? null : _send,
                   style: IconButton.styleFrom(backgroundColor: _green),
                   icon: _sending
@@ -338,13 +339,9 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('Business Assistant'),
             Text(
-              widget.businessName == null
-                  ? 'Business Assistant'
-                  : 'Ask about ${widget.businessName}',
-            ),
-            Text(
-              'Answers based on customer comments',
+              'Jawaban berbasis komentar pelanggan',
               style: TextStyle(fontSize: 12, color: _grey),
             ),
           ],
