@@ -1,0 +1,9 @@
+project_id = "jiyvwjzzirszsypsfsvj"
+
+# Both functions validate their own caller credentials; the embedding endpoint
+# uses its webhook secret instead of a user JWT.
+[functions.recommend-stores]
+verify_jwt = false
+
+[functions.embed-comment]
+verify_jwt = false

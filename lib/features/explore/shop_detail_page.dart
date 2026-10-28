@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:sekitaran/features/assistant/business_assistant_page.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/route_map_page.dart';
 import 'package:sekitaran/features/explore/shop_detail_service.dart';
@@ -1106,6 +1107,21 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _heading('Comments', Icons.chat_bubble_outline),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => BusinessAssistantPage(
+                  businessId: widget.shop.id,
+                  businessName: widget.shop.name,
+                ),
+              ),
+            );
+          },
+          icon: const Icon(Icons.auto_awesome),
+          label: const Text('Ask AI about all comments'),
+        ),
         const SizedBox(height: 12),
         Row(
           children: [

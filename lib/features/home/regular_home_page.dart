@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/indonesia_geo.dart';
+import 'package:sekitaran/features/assistant/business_assistant_page.dart';
 import 'package:sekitaran/features/explore/explore_service.dart';
 import 'package:sekitaran/features/explore/map_utils.dart';
 import 'package:sekitaran/features/explore/shop_detail_page.dart';
@@ -102,6 +103,11 @@ class _RegularHomePageState extends State<RegularHomePage>
       setState(() {});
       _checkUpdates();
     }
+  }
+
+  void _openBusinessAssistant() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const BusinessAssistantPage()));
   }
 
   @override
@@ -690,6 +696,25 @@ class _RegularHomePageState extends State<RegularHomePage>
                       _title(),
                       const SizedBox(height: 16),
                       _subtitle(),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _openBusinessAssistant,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _green,
+                            side: const BorderSide(color: _accent),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          icon: const Icon(Icons.auto_awesome_outlined),
+                          label: Text(
+                            'Ask AI about local businesses',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
                       _heading('Local Time', Icons.schedule),
                       const SizedBox(height: 14),
                       _ZoneClocks(
