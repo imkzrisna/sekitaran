@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -11,6 +14,13 @@ import 'package:sekitaran/features/home/business_service.dart' show timeAgo;
 import 'package:sekitaran/features/home/user_radial_menu.dart';
 
 enum _CommentSort { newest, top }
+
+class _SentimentResult {
+  const _SentimentResult(this.sentiment, {this.error});
+
+  final String sentiment;
+  final Object? error;
+}
 
 class ShopDetailPage extends StatefulWidget {
   const ShopDetailPage({super.key, required this.origin, required this.shop});
@@ -42,6 +52,7 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
   int _req = 0;
   _CommentSort _sort = _CommentSort.newest;
   final _busyLikes = <String>{};
+  final _sentimentRequests = <String, Future<_SentimentResult>>{};
   bool _showAll = false;
   static const _previewCount = 5;
 
@@ -143,6 +154,86 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
     } finally {
       _busyLikes.remove(c.id);
     }
+  }
+
+  Future<_SentimentResult> _analyzeComment(ShopDetailComment comment) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+    try {
+      final request = await client
+          .postUrl(Uri.parse('http://10.0.2.2:8000/analyze'))
+          .timeout(const Duration(seconds: 10));
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode({'text': comment.body}));
+
+      final response = await request.close().timeout(
+        const Duration(seconds: 10),
+      );
+      final responseBody = await response
+          .transform(utf8.decoder)
+          .join()
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw HttpException(
+          'Sentiment analysis returned HTTP ${response.statusCode}.',
+        );
+      }
+
+      final decoded = jsonDecode(responseBody);
+      if (decoded is! Map<String, dynamic> || decoded['sentiment'] is! String) {
+        throw const FormatException(
+          'Sentiment analysis response is missing a string sentiment.',
+        );
+      }
+
+      final sentiment = (decoded['sentiment'] as String).trim().toLowerCase();
+      if (!{'positif', 'negatif', 'netral'}.contains(sentiment)) {
+        throw FormatException('Unknown sentiment value: $sentiment');
+      }
+      return _SentimentResult(sentiment);
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Sentiment analysis failed for comment ${comment.id}: '
+        '$error\n$stackTrace',
+      );
+      return _SentimentResult('unknown', error: error);
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Future<_SentimentResult> _sentimentFor(ShopDetailComment comment) =>
+      _sentimentRequests.putIfAbsent(
+        comment.id,
+        () => _analyzeComment(comment),
+      );
+
+  Widget _sentimentChip(ShopDetailComment comment) {
+    return FutureBuilder<_SentimentResult>(
+      future: _sentimentFor(comment),
+      builder: (context, snapshot) {
+        final result = snapshot.data;
+        final sentiment = result?.sentiment ?? 'analyzing…';
+        final color = switch (sentiment) {
+          'positif' => Colors.green,
+          'negatif' => Colors.red,
+          'neutral' => Colors.grey,
+          'unknown' => Colors.amber,
+          _ => Colors.grey,
+        };
+        return Chip(
+          label: Text(sentiment),
+          backgroundColor: color.withValues(alpha: 0.16),
+          labelStyle: GoogleFonts.poppins(
+            fontSize: 11,
+            color: color == Colors.amber ? Colors.brown : color.shade800,
+            fontWeight: FontWeight.w500,
+          ),
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        );
+      },
+    );
   }
 
   List<ShopDetailComment> _sorted(List<ShopDetailComment> src) {
@@ -981,6 +1072,7 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
                       height: 1.55,
                     ),
                   ),
+                  _sentimentChip(c),
                 ],
               ),
             ),
