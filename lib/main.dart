@@ -24,20 +24,6 @@ Future<void> main() async {
     publishableKey: SupabaseConfig.publishableKey,
   );
 
-  final hashedPassword1 = sha256
-      .convert(utf8.encode("sayakurangtawu1"))
-      .toString();
-  final hashedPassword2 = sha256
-      .convert(utf8.encode("sayakurangtawu2"))
-      .toString();
-  final hashedPassword3 = sha256
-      .convert(utf8.encode("sayakurangtawu3"))
-      .toString();
-
-  print("sayakurangtawu1: " + hashedPassword1);
-  print("sayakurangtawu2: " + hashedPassword2);
-  print("sayakurangtawu3: " + hashedPassword3);
-
   runApp(const MyApp());
 }
 
