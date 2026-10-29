@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum SignUpResult { needsOtp, signedIn }
@@ -24,9 +27,12 @@ class AuthService {
       if (!await isUsernameAvailable(username)) {
         throw const AuthFailure('Username sudah dipakai. Coba username lain.');
       }
+
+      final hashedPassword = sha256.convert(utf8.encode(password)).toString();
+
       final res = await _client.auth.signUp(
         email: email,
-        password: password,
+        password: hashedPassword,
         data: {'username': username}, // disimpan ke profiles di akhir alur
       );
       final user = res.user;
@@ -180,7 +186,13 @@ class AuthService {
         }
         email = res;
       }
-      await _client.auth.signInWithPassword(email: email, password: password);
+
+      final hashedPassword = sha256.convert(utf8.encode(password)).toString();
+
+      await _client.auth.signInWithPassword(
+        email: email,
+        password: hashedPassword,
+      );
     } on AuthFailure {
       rethrow;
     } on AuthRetryableFetchException {
