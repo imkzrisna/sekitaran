@@ -1,7 +1,11 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:sekitaran/features/assistant/business_assistant_page.dart';
+import 'package:sekitaran/features/global_chat/adapter/session_manager/supabase_session_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/supabase_config.dart';
 import 'package:sekitaran/features/auth/login_page.dart';
@@ -19,6 +23,20 @@ Future<void> main() async {
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
   );
+
+  final hashedPassword1 = sha256
+      .convert(utf8.encode("sayakurangtawu1"))
+      .toString();
+  final hashedPassword2 = sha256
+      .convert(utf8.encode("sayakurangtawu2"))
+      .toString();
+  final hashedPassword3 = sha256
+      .convert(utf8.encode("sayakurangtawu3"))
+      .toString();
+
+  print("sayakurangtawu1: " + hashedPassword1);
+  print("sayakurangtawu2: " + hashedPassword2);
+  print("sayakurangtawu3: " + hashedPassword3);
 
   runApp(const MyApp());
 }
