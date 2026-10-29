@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:sekitaran/features/assistant/business_assistant_page.dart';
+import 'package:sekitaran/features/blockchain/pages/blockchain_dashboard_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/core/supabase_config.dart';
 import 'package:sekitaran/features/auth/login_page.dart';

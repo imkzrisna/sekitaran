@@ -48,7 +48,7 @@ class BlockchainService {
 
       Block block = Block(
         (await _gateway.getLatestBlockAsync())!.hash,
-        transaction.toString(),
+        transaction.toJson().toString(),
       );
 
       final userAddress = await _wallet.getWalletAddressById(

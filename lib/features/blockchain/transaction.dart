@@ -33,4 +33,14 @@ class Transaction {
 
     return this;
   }
+
+  Map<String, dynamic> toJson() => {
+    "id": id,
+    "giverAddress": giverAddress,
+    "receiverAddress": receiverAddress,
+    "transactionDate": transactionDate,
+    "transactionAmount": transactionAmount,
+    "memo": memo,
+    "status": status,
+  };
 }
