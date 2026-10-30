@@ -3,8 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sekitaran/features/assistant/business_assistant_service.dart';
+import 'package:sekitaran/features/explore/explore_service.dart';
+import 'package:sekitaran/features/explore/shop_detail_page.dart';
 import 'package:sekitaran/features/home/user_radial_menu.dart';
 
 class BusinessAssistantPage extends StatefulWidget {
@@ -52,6 +56,11 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
   bool _sending = false;
   String? _error;
   String? _lastQuestion;
+  List<Shop>? _shopCache;
+  Future<List<Shop>>? _shopLoad;
+  LatLng? _origin;
+  DateTime? _originAt;
+  String? _openingShopId;
 
   @override
   void initState() {
@@ -160,16 +169,15 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
         businessId: widget.businessId,
       );
       if (!mounted) return;
-      setState(() {
-        _turns.add(
-          _ConversationTurn(
-            text: reply.answer,
-            isAssistant: true,
-            time: DateTime.now(),
-            sources: reply.sources,
-          ),
-        );
-      });
+      final answerTurn = _ConversationTurn(
+        text: reply.answer,
+        isAssistant: true,
+        time: DateTime.now(),
+        sources: reply.sources,
+      );
+      setState(() => _turns.add(answerTurn));
+      // Kartu toko dicari di latar belakang; jawaban tampil lebih dulu.
+      _attachShops(answerTurn);
     } on BusinessAssistantFailure catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
@@ -180,6 +188,284 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
         _scrollToBottom();
       }
     }
+  }
+
+  // ---------- Kartu toko dari jawaban ----------
+
+  static final _wordChar = RegExp(r'[\p{L}\p{N}]', unicode: true);
+
+  String _norm(String s) =>
+      s.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+
+  bool _isWordChar(String c) => c.isNotEmpty && _wordChar.hasMatch(c);
+
+  /// Posisi [name] sebagai kata utuh di [text], atau -1 bila tidak ada.
+  int _indexOfWord(String text, String name) {
+    var from = 0;
+    while (true) {
+      final i = text.indexOf(name, from);
+      if (i < 0) return -1;
+      final end = i + name.length;
+      final before = i == 0 ? '' : text[i - 1];
+      final after = end >= text.length ? '' : text[end];
+      if (!_isWordChar(before) && !_isWordChar(after)) return i;
+      from = i + 1;
+    }
+  }
+
+  List<Shop> _mentioned(
+    String answer,
+    List<AssistantSource> sources,
+    List<Shop> shops,
+  ) {
+    var text = _norm(answer);
+    final ids = {for (final s in sources) s.businessId};
+    // Nama terpanjang dicocokkan lebih dulu.
+    final byLength = [...shops]
+      ..sort((a, b) => b.name.length.compareTo(a.name.length));
+    final found = <(int, Shop)>[];
+    for (final shop in byLength) {
+      final name = _norm(shop.name);
+      if (name.isEmpty) continue;
+      final at = _indexOfWord(text, name);
+      if (at >= 0) {
+        found.add((at, shop));
+        // Bagian yang sudah cocok dihapus agar nama yang lebih pendek
+        // (mis. Aa) tidak ikut cocok di dalam nama yang lebih panjang.
+        text = text.replaceRange(at, at + name.length, '\u0001' * name.length);
+      } else if (ids.contains(shop.id)) {
+        found.add((1 << 30, shop));
+      }
+    }
+    found.sort((a, b) => a.$1.compareTo(b.$1));
+    return [for (final f in found.take(6)) f.$2];
+  }
+
+  Future<List<Shop>> _allShops() {
+    final cached = _shopCache;
+    if (cached != null) return Future.value(cached);
+    return _shopLoad ??= _fetchAllShops();
+  }
+
+  Future<List<Shop>> _fetchAllShops() async {
+    try {
+      final list = await fetchShops();
+      _shopCache = list;
+      return list;
+    } catch (_) {
+      return const <Shop>[];
+    } finally {
+      _shopLoad = null;
+    }
+  }
+
+  Future<void> _attachShops(_ConversationTurn turn) async {
+    final shops = await _allShops();
+    if (!mounted || shops.isEmpty) return;
+    final found = _mentioned(turn.text, turn.sources, shops);
+    if (found.isEmpty) return;
+    setState(() => turn.shops = found);
+    _scrollToBottom();
+  }
+
+  void _toast(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  /// Posisi pengguna untuk halaman toko (dipakai ulang selama 2 menit).
+  Future<LatLng?> _currentOrigin() async {
+    final cached = _origin;
+    final at = _originAt;
+    if (cached != null &&
+        at != null &&
+        DateTime.now().difference(at) < const Duration(minutes: 2)) {
+      return cached;
+    }
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        _toast('Turn on GPS to open the shop page.');
+        return null;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        _toast('Location permission is needed to open the shop page.');
+        return null;
+      }
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 10),
+          ),
+        );
+      } catch (_) {
+        pos = await Geolocator.getLastKnownPosition();
+      }
+      if (pos == null) {
+        _toast('Could not get your location. Please try again.');
+        return null;
+      }
+      final here = LatLng(pos.latitude, pos.longitude);
+      _origin = here;
+      _originAt = DateTime.now();
+      return here;
+    } catch (_) {
+      _toast('Could not get your location. Please try again.');
+      return null;
+    }
+  }
+
+  Future<void> _openShop(Shop shop) async {
+    if (_openingShopId != null) return;
+    setState(() => _openingShopId = shop.id);
+    LatLng? origin;
+    try {
+      origin = await _currentOrigin();
+    } finally {
+      if (mounted) setState(() => _openingShopId = null);
+    }
+    if (!mounted) return;
+    final here = origin;
+    if (here == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShopDetailPage(origin: here, shop: shop),
+      ),
+    );
+  }
+
+  Widget _bubble(_ConversationTurn turn) {
+    return Column(
+      key: ObjectKey(turn),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _bubbleBody(turn),
+        if (turn.shops.isNotEmpty) _shopCard(turn.shops),
+      ],
+    );
+  }
+
+  Widget _shopRow(Shop shop, {required bool last}) {
+    final opening = _openingShopId == shop.id;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _openingShopId == null ? () => _openShop(shop) : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          border: last
+              ? null
+              : Border(
+                  bottom: BorderSide(color: _border.withValues(alpha: 0.6)),
+                ),
+        ),
+        child: Row(
+          children: [
+            Icon(shop.category.icon, size: 22, color: _green),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    shop.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: _t(14.5, weight: FontWeight.w500),
+                  ),
+                  Text(shop.category.label, style: _t(12, color: _grey)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 26,
+              child: opening
+                  ? const Center(
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _green,
+                        ),
+                      ),
+                    )
+                  : const Icon(Icons.chevron_right, size: 22, color: _grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _shopCard(List<Shop> shops) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 320),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          builder: (_, v, child) => Opacity(
+            opacity: v,
+            child: Transform.translate(
+              offset: Offset(0, (1 - v) * 8),
+              child: child,
+            ),
+          ),
+          child: Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(top: 2, bottom: 6),
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _border.withValues(alpha: 0.6)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: _accent, width: 1.5),
+                        ),
+                      ),
+                      child: Text(
+                        'Shops',
+                        style: _t(14, weight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.storefront_outlined,
+                      color: _green,
+                      size: 20,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                for (var i = 0; i < shops.length; i++)
+                  _shopRow(shops[i], last: i == shops.length - 1),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _scrollToBottom() {
@@ -431,7 +717,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
     );
   }
 
-  Widget _bubble(_ConversationTurn turn) {
+  Widget _bubbleBody(_ConversationTurn turn) {
     final mine = !turn.isAssistant;
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
@@ -718,6 +1004,7 @@ class _ConversationTurn {
   final DateTime time;
   final List<AssistantSource> sources;
   bool showSources = false;
+  List<Shop> shops = const [];
 }
 
 /// Tiga titik yang bergelombang, penanda asisten sedang menjawab.
