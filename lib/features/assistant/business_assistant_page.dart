@@ -342,18 +342,56 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
     );
   }
 
+  bool _isLong(_ConversationTurn turn) =>
+      turn.isAssistant && turn.text.length > 160;
+
+  String _summary(String text) {
+    var t = text.replaceAll(RegExp(r'\([^)]*\)'), '');
+    t = t.replaceAll(RegExp(r'\s+'), ' ').trim();
+    t = t.replaceFirst(
+      RegExp(r'^berdasarkan [^,]+,\s*', caseSensitive: false),
+      '',
+    );
+    final m = RegExp(r'^.+?[.!?](?=\s|$)').firstMatch(t);
+    var first = m?.group(0) ?? t;
+    if (first.length > 140) {
+      first = '${first.substring(0, 137).trimRight()}...';
+    }
+    if (first.isEmpty) return text;
+    return first[0].toUpperCase() + first.substring(1);
+  }
+
+  String _shown(_ConversationTurn turn) =>
+      (_isLong(turn) && !turn.expanded) ? _summary(turn.text) : turn.text;
+
+  Widget _expandToggle(_ConversationTurn turn) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => turn.expanded = !turn.expanded),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(
+          turn.expanded ? 'Ringkas' : 'Lihat jawaban lengkap',
+          style: _t(12.5, weight: FontWeight.w600, color: _green),
+        ),
+      ),
+    );
+  }
+
   Widget _bubble(_ConversationTurn turn) {
     return Column(
       key: ObjectKey(turn),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _PopIn(mine: !turn.isAssistant, child: _bubbleBody(turn)),
-        if (turn.shops.isNotEmpty) _shopCard(turn.shops),
+        RepaintBoundary(
+          child: _PopIn(mine: !turn.isAssistant, child: _bubbleBody(turn)),
+        ),
+        if (turn.shops.isNotEmpty) _shopCard(turn.shops, turn.sources),
       ],
     );
   }
 
-  Widget _shopRow(Shop shop, {required bool last}) {
+  Widget _shopRow(Shop shop, {required bool last, int comments = 0}) {
     final opening = _openingShopId == shop.id;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -385,6 +423,19 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
                 ],
               ),
             ),
+            if (comments > 0) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$comments ${comments == 1 ? 'comment' : 'comments'}',
+                  style: _t(11, weight: FontWeight.w600, color: _green),
+                ),
+              ),
+            ],
             const SizedBox(width: 8),
             SizedBox(
               width: 26,
@@ -407,7 +458,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
     );
   }
 
-  Widget _shopCard(List<Shop> shops) {
+  Widget _shopCard(List<Shop> shops, List<AssistantSource> sources) {
     return Align(
       alignment: Alignment.centerLeft,
       child: ConstrainedBox(
@@ -459,7 +510,13 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
                 ),
                 const SizedBox(height: 2),
                 for (var i = 0; i < shops.length; i++)
-                  _shopRow(shops[i], last: i == shops.length - 1),
+                  _shopRow(
+                    shops[i],
+                    last: i == shops.length - 1,
+                    comments: sources
+                        .where((x) => x.businessId == shops[i].id)
+                        .length,
+                  ),
               ],
             ),
           ),
@@ -474,8 +531,8 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
       // Daftar dibalik (reverse), jadi posisi 0 adalah bagian paling bawah.
       _scroll.animateTo(
         0,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
       );
     });
   }
@@ -549,7 +606,11 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
       padding: EdgeInsets.fromLTRB(28, compact ? 24 : 56, 28, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [_title(), const SizedBox(height: 12), _subtitle()],
+        children: [
+          Align(alignment: Alignment.centerLeft, child: _title()),
+          const SizedBox(height: 12),
+          _subtitle(),
+        ],
       ),
     );
   }
@@ -743,7 +804,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
                   TextSpan(
                     children: [
                       TextSpan(
-                        text: turn.text,
+                        text: _shown(turn),
                         style: _t(
                           14.5,
                           color: mine ? Colors.white : _ink,
@@ -762,6 +823,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
                     ],
                   ),
                 ),
+                if (_isLong(turn)) _expandToggle(turn),
                 if (turn.sources.isNotEmpty) _sources(turn),
               ],
             ),
@@ -1021,6 +1083,7 @@ class _ConversationTurn {
   final DateTime time;
   final List<AssistantSource> sources;
   bool showSources = false;
+  bool expanded = false;
   List<Shop> shops = const [];
 }
 
@@ -1076,8 +1139,8 @@ class _TypingDotsState extends State<_TypingDots>
   }
 }
 
-/// Muncul dengan fade, geser naik tipis, dan sedikit membesar dari sudut
-/// gelembung supaya pesan baru tidak terasa tiba-tiba.
+/// Muncul dengan tinggi yang tumbuh pelan, fade, dan geser tipis, sehingga
+/// pesan lama bergeser naik dengan halus saat pesan baru masuk.
 class _PopIn extends StatelessWidget {
   const _PopIn({super.key, required this.mine, required this.child});
 
@@ -1088,16 +1151,22 @@ class _PopIn extends StatelessWidget {
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 320),
+      duration: const Duration(milliseconds: 420),
       curve: Curves.easeOutCubic,
-      builder: (_, v, child) => Opacity(
-        opacity: v,
-        child: Transform.translate(
-          offset: Offset(0, (1 - v) * 12),
-          child: Transform.scale(
-            scale: 0.96 + 0.04 * v,
-            alignment: mine ? Alignment.bottomRight : Alignment.bottomLeft,
-            child: child,
+      builder: (_, v, child) => ClipRect(
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          heightFactor: v,
+          child: Opacity(
+            opacity: v,
+            child: Transform.translate(
+              offset: Offset(0, (1 - v) * 14),
+              child: Transform.scale(
+                scale: 0.96 + 0.04 * v,
+                alignment: mine ? Alignment.bottomRight : Alignment.bottomLeft,
+                child: child,
+              ),
+            ),
           ),
         ),
       ),
