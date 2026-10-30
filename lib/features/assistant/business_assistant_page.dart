@@ -407,7 +407,15 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
         ),
         child: Row(
           children: [
-            Icon(shop.category.icon, size: 22, color: _green),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: _accent.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(shop.category.icon, size: 18, color: _green),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -622,12 +630,20 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
       behavior: HitTestBehavior.opaque,
       onTap: _sending ? null : () => _ask(q),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _border, width: 1.2),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _border.withValues(alpha: 0.7)),
         ),
-        child: Text(q, style: _t(12.5)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.north_east, size: 14, color: _green),
+            const SizedBox(width: 8),
+            Flexible(child: Text(q, style: _t(12.5))),
+          ],
+        ),
       ),
     );
   }
@@ -642,8 +658,8 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
             Container(
               width: 56,
               height: 56,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE6F0E7),
+              decoration: BoxDecoration(
+                color: _accent.withValues(alpha: 0.16),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.auto_awesome, size: 28, color: _green),
@@ -694,11 +710,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
         ),
         child: Text(
           'Hari ini',
-          style: _t(
-            12,
-            weight: FontWeight.w500,
-            color: const Color(0xFF5F5F5F),
-          ),
+          style: _t(12, weight: FontWeight.w500, color: _grey),
         ),
       ),
     );
@@ -713,17 +725,83 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
 
   Widget _sourceItem(AssistantSource source) {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.only(left: 10),
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: _accent, width: 1.5)),
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.fromLTRB(12, 2, 0, 2),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: _accent.withValues(alpha: 0.7), width: 2),
+        ),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text(source.excerpt, style: _t(12.5, height: 1.4))),
-          const SizedBox(width: 10),
+          Text(source.excerpt, style: _t(13, height: 1.45)),
+          const SizedBox(height: 3),
           Text(_date(source.createdAt), style: _t(11, color: _grey)),
+        ],
+      ),
+    );
+  }
+
+  Widget _countBadge(int n) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: _accent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        '$n',
+        style: _t(11, weight: FontWeight.w600, color: _green),
+      ),
+    );
+  }
+
+  Widget _sourceGroup(String name, List<AssistantSource> items, bool first) {
+    final initial = name.isEmpty
+        ? '?'
+        : String.fromCharCode(name.runes.first).toUpperCase();
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(top: first ? 14 : 14, bottom: 6),
+      decoration: BoxDecoration(
+        border: first
+            ? null
+            : Border(top: BorderSide(color: _border.withValues(alpha: 0.45))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  initial,
+                  style: _t(12.5, weight: FontWeight.w600, color: _green),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _t(13.5, weight: FontWeight.w600, color: _green),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _countBadge(items.length),
+            ],
+          ),
+          for (final x in items) _sourceItem(x),
         ],
       ),
     );
@@ -737,50 +815,25 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
     final names = groups.keys.toList();
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _border.withValues(alpha: 0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: _ink.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (var i = 0; i < names.length; i++)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.only(top: 12, bottom: 4),
-              decoration: BoxDecoration(
-                border: i == 0
-                    ? null
-                    : Border(
-                        top: BorderSide(color: _border.withValues(alpha: 0.45)),
-                      ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          names[i],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _t(13, weight: FontWeight.w600, color: _green),
-                        ),
-                      ),
-                      Text(
-                        '${groups[names[i]]!.length}',
-                        style: _t(11.5, color: _grey),
-                      ),
-                    ],
-                  ),
-                  for (final x in groups[names[i]]!) _sourceItem(x),
-                ],
-              ),
-            ),
+            _sourceGroup(names[i], groups[names[i]]!, i == 0),
         ],
       ),
     );
@@ -790,37 +843,53 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => setState(() => turn.showSources = !turn.showSources),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.only(bottom: 2),
-                decoration: const BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: _accent, width: 1.5),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
+            decoration: BoxDecoration(
+              color: turn.showSources
+                  ? _accent.withValues(alpha: 0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: turn.showSources
+                    ? _accent
+                    : _border.withValues(alpha: 0.8),
+                width: 1.2,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.format_quote_rounded, size: 16, color: _green),
+                const SizedBox(width: 6),
+                Text(
+                  'Sources',
+                  style: _t(12.5, weight: FontWeight.w600, color: _green),
+                ),
+                const SizedBox(width: 8),
+                _countBadge(turn.sources.length),
+                const SizedBox(width: 2),
+                AnimatedRotation(
+                  turns: turn.showSources ? 0.25 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: _grey,
                   ),
                 ),
-                child: Text(
-                  'Sources \u00B7 ${turn.sources.length}',
-                  style: _t(12.5, weight: FontWeight.w600),
-                ),
-              ),
-              const SizedBox(width: 4),
-              AnimatedRotation(
-                turns: turn.showSources ? 0.25 : 0,
-                duration: const Duration(milliseconds: 200),
-                child: const Icon(Icons.chevron_right, size: 18, color: _grey),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         AnimatedSize(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
           alignment: Alignment.topCenter,
           child: turn.showSources
               ? _sourcePanel(turn.sources)
@@ -847,6 +916,15 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
               border: mine
                   ? null
                   : Border.all(color: _border.withValues(alpha: 0.6)),
+              boxShadow: mine
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: _ink.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -956,7 +1034,10 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
   Widget _field() {
     OutlineInputBorder border(double width) => OutlineInputBorder(
       borderRadius: BorderRadius.circular(28),
-      borderSide: BorderSide(color: _green, width: width),
+      borderSide: BorderSide(
+        color: width > 1.5 ? _green : _border,
+        width: width,
+      ),
     );
     return TextField(
       controller: _input,
@@ -987,8 +1068,8 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
           horizontal: 20,
           vertical: 15,
         ),
-        border: border(1.5),
-        enabledBorder: border(1.5),
+        border: border(1.2),
+        enabledBorder: border(1.2),
         focusedBorder: border(1.8),
       ),
     );
@@ -1003,6 +1084,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
         onTap: enabled ? _send : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
           width: 52,
           height: 52,
           decoration: BoxDecoration(
