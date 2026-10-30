@@ -711,25 +711,76 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
     bottomRight: Radius.circular(mine ? 4 : 18),
   );
 
-  Widget _source(AssistantSource source) {
+  Widget _sourceItem(AssistantSource source) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(left: 10),
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: _accent, width: 1.5)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: Text(source.excerpt, style: _t(12.5, height: 1.4))),
+          const SizedBox(width: 10),
+          Text(_date(source.createdAt), style: _t(11, color: _grey)),
+        ],
+      ),
+    );
+  }
+
+  Widget _sourcePanel(List<AssistantSource> sources) {
+    final groups = <String, List<AssistantSource>>{};
+    for (final x in sources) {
+      groups.putIfAbsent(x.businessName, () => []).add(x);
+    }
+    final names = groups.keys.toList();
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
       decoration: BoxDecoration(
-        color: _bg,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _border.withValues(alpha: 0.6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${source.businessName} \u00B7 ${_date(source.createdAt)}',
-            style: _t(12, weight: FontWeight.w600, color: _green),
-          ),
-          const SizedBox(height: 4),
-          Text('\u201C${source.excerpt}\u201D', style: _t(12.5, height: 1.4)),
+          for (var i = 0; i < names.length; i++)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              decoration: BoxDecoration(
+                border: i == 0
+                    ? null
+                    : Border(
+                        top: BorderSide(color: _border.withValues(alpha: 0.45)),
+                      ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          names[i],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _t(13, weight: FontWeight.w600, color: _green),
+                        ),
+                      ),
+                      Text(
+                        '${groups[names[i]]!.length}',
+                        style: _t(11.5, color: _grey),
+                      ),
+                    ],
+                  ),
+                  for (final x in groups[names[i]]!) _sourceItem(x),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -772,7 +823,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
           curve: Curves.easeOut,
           alignment: Alignment.topCenter,
           child: turn.showSources
-              ? Column(children: [for (final s in turn.sources) _source(s)])
+              ? _sourcePanel(turn.sources)
               : const SizedBox(width: double.infinity),
         ),
       ],
