@@ -61,13 +61,14 @@ class RadialNavMenu extends StatefulWidget {
          ),
        ];
 
-  /// Menu Regular User: Profile, Home, Explore, Currency.
+  /// Menu Regular User: Profile, Home, Explore, Currency, blockchain.
   RadialNavMenu.regular({
     super.key,
     VoidCallback? onProfile,
     VoidCallback? onHome,
     VoidCallback? onChat,
     VoidCallback? onCurrency,
+    VoidCallback? onBlockChain,
     this.current,
   }) : entries = [
          RadialNavEntry(

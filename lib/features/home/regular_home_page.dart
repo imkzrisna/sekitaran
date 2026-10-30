@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/blockchain/pages/blockchain_dashboard_page.dart';
 import 'package:sekitaran/features/home/user_radial_menu.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -108,6 +109,11 @@ class _RegularHomePageState extends State<RegularHomePage>
   void _openBusinessAssistant() {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const BusinessAssistantPage()));
+  }
+
+  void _openBlockChain() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => BlockchainDashboardPage()));
   }
 
   @override
@@ -709,6 +715,24 @@ class _RegularHomePageState extends State<RegularHomePage>
                           icon: const Icon(Icons.auto_awesome_outlined),
                           label: Text(
                             'Ask AI about local businesses',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _openBlockChain,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _green,
+                            side: const BorderSide(color: _accent),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          icon: const Icon(Icons.account_tree),
+                          label: Text(
+                            'Tambang dan transfer KTS',
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.w500,
                             ),

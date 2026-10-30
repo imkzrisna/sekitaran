@@ -70,11 +70,6 @@ class _BlockchainDashboardPageState extends State<BlockchainDashboardPage> {
     _wallet = SupabaseWalletGateway();
     _service = BlockchainService(gateway, transaction, _session, _wallet);
 
-    await _session.signInWithPasswordAsync(
-      email: "fkrizel24@gmail.com",
-      password: "sayakurangtawu1",
-    );
-
     if (!mounted) return;
     _load();
   }
