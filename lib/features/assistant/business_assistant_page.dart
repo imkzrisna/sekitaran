@@ -347,7 +347,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
       key: ObjectKey(turn),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _bubbleBody(turn),
+        _PopIn(mine: !turn.isAssistant, child: _bubbleBody(turn)),
         if (turn.shops.isNotEmpty) _shopCard(turn.shops),
       ],
     );
@@ -622,6 +622,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
 
   Widget _datePill() {
     return Center(
+      key: const ValueKey('date-pill'),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
@@ -790,7 +791,12 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
     final items = <Widget>[
       _datePill(),
       for (final t in _turns) _bubble(t),
-      if (_sending) _typingBubble(),
+      if (_sending)
+        _PopIn(
+          key: const ValueKey('typing'),
+          mine: false,
+          child: _typingBubble(),
+        ),
     ];
     return ListView(
       controller: _scroll,
@@ -974,10 +980,21 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 440),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _header(keyboard),
                     const SizedBox(height: 8),
-                    Expanded(child: _turns.isEmpty ? _welcome() : _messages()),
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        switchInCurve: Curves.easeOut,
+                        switchOutCurve: Curves.easeIn,
+                        child: KeyedSubtree(
+                          key: ValueKey(_turns.isEmpty),
+                          child: _turns.isEmpty ? _welcome() : _messages(),
+                        ),
+                      ),
+                    ),
                     _composer(mq),
                   ],
                 ),
@@ -1055,6 +1072,36 @@ class _TypingDotsState extends State<_TypingDots>
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Muncul dengan fade, geser naik tipis, dan sedikit membesar dari sudut
+/// gelembung supaya pesan baru tidak terasa tiba-tiba.
+class _PopIn extends StatelessWidget {
+  const _PopIn({super.key, required this.mine, required this.child});
+
+  final bool mine;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, (1 - v) * 12),
+          child: Transform.scale(
+            scale: 0.96 + 0.04 * v,
+            alignment: mine ? Alignment.bottomRight : Alignment.bottomLeft,
+            child: child,
+          ),
+        ),
+      ),
+      child: child,
     );
   }
 }
