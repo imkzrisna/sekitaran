@@ -40,6 +40,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
   static const _border = Color(0xFFC9C9C9);
   static const _maxQuestionLength = 500;
   static const _minQuestionLength = 3;
+  static const _sourcePreview = 5;
 
   static const _suggestions = [
     'Toko apa saja yang ada di sekitar sini?',
@@ -807,7 +808,9 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
     );
   }
 
-  Widget _sourcePanel(List<AssistantSource> sources) {
+  Widget _sourcePanel(_ConversationTurn turn) {
+    final all = turn.sources;
+    final sources = turn.allSources ? all : all.take(_sourcePreview).toList();
     final groups = <String, List<AssistantSource>>{};
     for (final x in sources) {
       groups.putIfAbsent(x.businessName, () => []).add(x);
@@ -834,6 +837,43 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
         children: [
           for (var i = 0; i < names.length; i++)
             _sourceGroup(names[i], groups[names[i]]!, i == 0),
+          if (all.length > _sourcePreview)
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: _border.withValues(alpha: 0.45)),
+                ),
+              ),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => turn.allSources = !turn.allSources),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        turn.allSources
+                            ? 'Tampilkan lebih sedikit'
+                            : 'Lihat semua ${all.length} komentar',
+                        style: _t(12.5, weight: FontWeight.w600, color: _green),
+                      ),
+                      const SizedBox(width: 4),
+                      AnimatedRotation(
+                        turns: turn.allSources ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: const Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 18,
+                          color: _green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -892,7 +932,7 @@ class _BusinessAssistantPageState extends State<BusinessAssistantPage> {
           curve: Curves.easeOutCubic,
           alignment: Alignment.topCenter,
           child: turn.showSources
-              ? _sourcePanel(turn.sources)
+              ? _sourcePanel(turn)
               : const SizedBox(width: double.infinity),
         ),
       ],
@@ -1216,6 +1256,7 @@ class _ConversationTurn {
   final DateTime time;
   final List<AssistantSource> sources;
   bool showSources = false;
+  bool allSources = false;
   bool expanded = false;
   List<Shop> shops = const [];
 }
