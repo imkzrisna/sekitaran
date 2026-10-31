@@ -466,31 +466,8 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 28),
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Divider(color: _border, thickness: 2),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'Or sign up with',
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              color: _grey,
-                            ),
-                          ),
-                        ),
-                        const Expanded(
-                          child: Divider(color: _border, thickness: 2),
-                        ),
-                      ],
-                    ),
-
                     const SizedBox(height: 18),
-                    Center(child: _googleButton()),
-                    const SizedBox(height: 28),
+
                     Center(
                       child: Wrap(
                         crossAxisAlignment: WrapCrossAlignment.center,

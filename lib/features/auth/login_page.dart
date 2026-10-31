@@ -455,12 +455,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
 
                     const SizedBox(height: 14),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: _goldLink('Forgot password?', () {
-                        // TODO: halaman reset password
-                      }),
-                    ),
 
                     const SizedBox(height: 28),
                     IntrinsicHeight(
@@ -514,31 +508,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
 
                     const SizedBox(height: 28),
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Divider(color: _border, thickness: 2),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'Or login with',
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              color: _grey,
-                            ),
-                          ),
-                        ),
-                        const Expanded(
-                          child: Divider(color: _border, thickness: 2),
-                        ),
-                      ],
-                    ),
 
-                    const SizedBox(height: 18),
-                    Center(child: _googleButton()),
-
-                    const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
