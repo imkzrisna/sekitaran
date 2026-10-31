@@ -13,7 +13,7 @@ class SupabaseBlockChainGateway {
     await Supabase.instance.client.from("block").insert({
       "hash": genesisBlock.hash,
       "data": genesisBlock.data,
-      "previousHash": genesisBlock.previousHash,
+      "previous_hash": genesisBlock.previousHash,
       "nonce": genesisBlock.nonce,
     });
   }
@@ -51,22 +51,26 @@ class SupabaseBlockChainGateway {
     final blockchainRow = await Supabase.instance.client
         .from("block")
         .select("*");
+
     final blockChain = blockchainRow
         .map(
           (row) => Block(row["previous_hash"], row["data"])
               .withId(row["id"])
               .withNonce(row["nonce"])
-              .withCreationDate(row["created_at"])
+              .withCreationDate(DateTime.parse(row["created_at"]))
               .withHash(row["hash"]),
         )
         .toList();
 
-    for (var i = 0; i < blockChain.length; i++) {
+    // Start at 1 because genesis block (i=0) has no previous block to validate against
+    for (var i = 1; i < blockChain.length; i++) {
       Block currentBlock = blockChain[i];
       Block previousBlock = blockChain[i - 1];
 
+      // Validate hash is correctly calculated from block data
       if (currentBlock.hash != currentBlock.calculateHash()) return false;
 
+      // Validate chain linkage: previous hash must match previous block's hash
       if (currentBlock.previousHash != previousBlock.hash) return false;
     }
 

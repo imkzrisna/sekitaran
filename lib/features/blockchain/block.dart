@@ -54,4 +54,13 @@ class Block {
       hash = calculateHash();
     }
   }
+
+  /// Validates that the block's hash meets the proof-of-work difficulty requirement.
+  /// The hash must start with [difficulty] number of leading zeros.
+  static bool isHashValid(String hash, int difficulty) {
+    if (difficulty <= 0) return true;
+    if (hash.length < difficulty) return false;
+    final expectedLeadingZeros = "0" * difficulty;
+    return hash.substring(0, difficulty) == expectedLeadingZeros;
+  }
 }

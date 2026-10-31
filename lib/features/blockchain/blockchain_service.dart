@@ -33,6 +33,15 @@ class BlockchainService {
     final transactions = await _transaction.getAllAsync();
     if (transactions.isEmpty) return false;
 
+    // Validate the existing chain before mining new blocks
+    final isChainValid = await _gateway.isValidChain();
+    if (!isChainValid) {
+      print('chain is not valid');
+      _isMining = false;
+      isMiningNotifier.value = false;
+      return false;
+    }
+
     _stopRequested = false;
     _isMining = true;
     isMiningNotifier.value = true;
@@ -50,6 +59,12 @@ class BlockchainService {
         (await _gateway.getLatestBlockAsync())!.hash,
         transaction.toJson().toString(),
       );
+
+      // // Validate the block's proof-of-work before adding to chain
+      // if (!Block.isHashValid(block.hash, _gateway.difficulty)) {
+      //   // Block doesn't meet difficulty target; skip this transaction
+      //   continue;
+      // }
 
       final userAddress = await _wallet.getWalletAddressById(
         _session.currentSession!.userId,
