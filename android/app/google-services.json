@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "17421969241",
+    "project_id": "sekitaran-fd675",
+    "storage_bucket": "sekitaran-fd675.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:17421969241:android:56856dd6da542360e88e48",
+        "android_client_info": {
+          "package_name": "com.example.sekitaran"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzsBZtnxf0pnk1P9pxhidAgoO4S6TmWaE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
