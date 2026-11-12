@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/home/business_home_page.dart';
 import 'package:sekitaran/features/home/regular_home_page.dart';
 import 'package:sekitaran/features/auth/auth_service.dart';
+import 'package:sekitaran/features/notification/push_notification_service.dart';
 
 enum UserRole { regular, business }
 
@@ -29,7 +30,12 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
     if (role == null || _saving) return;
     setState(() => _saving = true);
     try {
-      await AuthService.instance.saveRole(role.name); // 'regular' / 'business'
+      await AuthService.instance.saveRole(role.name);
+
+      // Registrasi notifikasi setelah pengguna memilih Business Owner.
+      if (role == UserRole.business) {
+        await PushNotificationService.instance.initialize();
+      }
       if (!mounted) return;
       if (role == UserRole.business) {
         Navigator.of(context).pushAndRemoveUntil(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sekitaran/features/auth/fingerprint_scan_sheet.dart';
 import 'package:sekitaran/features/auth/auth_service.dart';
+import 'package:sekitaran/features/notification/push_notification_service.dart';
 import 'package:sekitaran/features/auth/biometric_service.dart';
 import 'package:sekitaran/features/auth/create_account_page.dart';
 import 'package:sekitaran/features/onboarding/role_selection_page.dart';
@@ -79,6 +80,11 @@ class _LoginPageState extends State<LoginPage> {
         MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
       );
       return;
+    }
+
+    // Registrasi notifikasi khusus pemilik usaha.
+    if (profile['role'] == 'business') {
+      await PushNotificationService.instance.initialize();
     }
 
     _snack('Login berhasil sebagai ${profile['username']}');

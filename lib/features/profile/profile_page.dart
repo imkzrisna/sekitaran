@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:sekitaran/features/notification/push_notification_service.dart';
 import 'package:sekitaran/features/home/user_radial_menu.dart';
 import 'package:sekitaran/features/profile/games_section.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -109,6 +110,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!ok || !mounted) return;
     setState(() => _loggingOut = true);
     try {
+      await PushNotificationService.instance.removeCurrentDeviceToken();
       await Supabase.instance.client.auth.signOut();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
