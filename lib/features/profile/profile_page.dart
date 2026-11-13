@@ -110,7 +110,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!ok || !mounted) return;
     setState(() => _loggingOut = true);
     try {
-      await PushNotificationService.instance.removeCurrentDeviceToken();
+
       await Supabase.instance.client.auth.signOut();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
