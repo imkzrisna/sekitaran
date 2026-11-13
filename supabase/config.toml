@@ -7,3 +7,6 @@ verify_jwt = false
 
 [functions.embed-comment]
 verify_jwt = false
+
+[functions.notify-comment]
+verify_jwt = false
