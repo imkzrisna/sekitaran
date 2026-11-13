@@ -82,10 +82,11 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // Registrasi notifikasi khusus pemilik usaha.
-    if (profile['role'] == 'business') {
-      await PushNotificationService.instance.initialize();
-    }
+    // Aktifkan listener notifikasi untuk semua role.
+    // Hanya Business Owner yang mendaftarkan FID ke Supabase.
+    await PushNotificationService.instance.initialize(
+      registerDevice: profile['role'] == 'business',
+    );
 
     _snack('Login berhasil sebagai ${profile['username']}');
     await Future.delayed(const Duration(milliseconds: 1200));

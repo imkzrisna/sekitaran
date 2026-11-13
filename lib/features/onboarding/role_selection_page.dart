@@ -32,10 +32,11 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
     try {
       await AuthService.instance.saveRole(role.name);
 
-      // Registrasi notifikasi setelah pengguna memilih Business Owner.
-      if (role == UserRole.business) {
-        await PushNotificationService.instance.initialize();
-      }
+      // Aktifkan listener notifikasi untuk role yang dipilih.
+      // Hanya Business Owner yang mendaftarkan FID ke Supabase.
+      await PushNotificationService.instance.initialize(
+        registerDevice: role == UserRole.business,
+      );
       if (!mounted) return;
       if (role == UserRole.business) {
         Navigator.of(context).pushAndRemoveUntil(
